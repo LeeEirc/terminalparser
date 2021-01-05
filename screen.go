@@ -49,28 +49,19 @@ func (s *Screen) Parse(data []byte) []string {
 				}
 				if existIndex := bytes.IndexRune([]byte(string(Parameters)), code); existIndex >= 0 {
 
-					switch code {
-					case '=':
-						log.Println("不支持=")
-					case '>':
-						log.Println("不支持>")
-					default:
-						log.Printf("Parameters====`%q` %x\n", code, code)
-					}
-
+					log.Printf("Screen 未解析 ESC `%q` %xParameters字符\n", code, code)
 					continue
 				}
-
 				if existIndex := bytes.IndexRune([]byte(string(Uppercase)), code); existIndex >= 0 {
-					log.Printf("Uppercase====`%q` %x\n", code, code)
+					log.Printf("Screen 未解析 ESC `%q` %x Uppercase字符\n", code, code)
 					continue
 				}
 
 				if existIndex := bytes.IndexRune([]byte(string(Lowercase)), code); existIndex >= 0 {
-					log.Printf("Lowercase====`%q` %x\n", code, code)
+					log.Printf("Screen 未解析 ESC `%q` %x Lowercase字符\n", code, code)
 					continue
 				}
-				log.Printf("未识别的解析，ESCKey `%q` %x\n", code, code)
+				log.Printf("Screen 未解析 ESC `%q` %x\n", code, code)
 			}
 			continue
 		case Delete:
@@ -172,9 +163,7 @@ func (s *Screen) parseIntermediate(code rune, p []byte) []byte {
 		case "B":
 			/*
 				ESC ( C   Designate G0 Character Set, VT100, ISO 2022.
-
 						  C = B  ⇒  United States (USASCII), VT100.
-
 			*/
 		}
 		p = p[terminationIndex+1:]
@@ -188,7 +177,7 @@ func (s *Screen) parseIntermediate(code rune, p []byte) []byte {
 		})
 		p = p[terminationIndex+1:]
 	default:
-		log.Printf("未处理的 parseIntermediate %q %d\n", code, code)
+		log.Printf("Screen 未解析 ESC `%q` %x Intermediate字符\n", code, code)
 	}
 	return p
 }
@@ -214,8 +203,6 @@ func (s *Screen) appendCharacter(code rune) {
 }
 
 func (s *Screen) eraseEndToLine() {
-	log.Printf("eraseEndToLine %d %d %d\n", s.Cursor.X,
-		s.Cursor.Y, len(s.Rows))
 	currentRow := s.GetCursorRow()
 	currentRow.changeCursorToX(s.Cursor.X)
 	currentRow.eraseRight()
@@ -223,33 +210,25 @@ func (s *Screen) eraseEndToLine() {
 }
 
 func (s *Screen) eraseRight() {
-	log.Printf("eraseRight %d %d %d\n", s.Cursor.X,
-		s.Cursor.Y, len(s.Rows))
 	currentRow := s.GetCursorRow()
 	currentRow.changeCursorToX(s.Cursor.X)
 	currentRow.eraseRight()
 }
 
 func (s *Screen) eraseLeft() {
-	log.Printf("Screen %s EraseLeft， cursor(%d，%d),总Row数量 %d",
+	log.Printf("Screen %s Erase Left cursor(%d，%d) 总Row数量 %d",
 		UnsupportedMsg, s.Cursor.X, s.Cursor.Y, len(s.Rows))
 }
 
 func (s *Screen) eraseAbove() {
-	log.Printf("eraseAbove %d %d %d", s.Cursor.X,
-		s.Cursor.Y, len(s.Rows))
 	s.Rows = s.Rows[s.Cursor.Y-1:]
 }
 
 func (s *Screen) eraseBelow() {
-	log.Printf("eraseBelow %d %d %d", s.Cursor.X,
-		s.Cursor.Y, len(s.Rows))
 	s.Rows = s.Rows[:s.Cursor.Y]
 }
 
 func (s *Screen) eraseAll() {
-	log.Printf("eraseAll %d %d %d", s.Cursor.X,
-		s.Cursor.Y, len(s.Rows))
 	s.Rows = s.Rows[:0]
 	//htop?
 	s.Cursor.X = 0
@@ -257,8 +236,6 @@ func (s *Screen) eraseAll() {
 }
 
 func (s *Screen) eraseFromCursor() {
-	log.Printf("eraseFromCursor %d %d %d", s.Cursor.X,
-		s.Cursor.Y, len(s.Rows))
 	if s.Cursor.Y > len(s.Rows) {
 		s.Cursor.Y = len(s.Rows)
 	}
@@ -268,7 +245,6 @@ func (s *Screen) eraseFromCursor() {
 }
 
 func (s *Screen) deleteChars(ps int) {
-	log.Printf("deleteChars %d chars \n", ps)
 	currentRow := s.GetCursorRow()
 	currentRow.changeCursorToX(s.Cursor.X)
 	currentRow.deleteChars(ps)
@@ -285,7 +261,7 @@ func (s *Screen) GetCursorRow() *Row {
 	}
 	index := s.Cursor.Y - 1
 	if index >= len(s.Rows) {
-		log.Printf("总行数 %d 比当前行 %d 小，存在解析错误 \n", len(s.Rows), s.Cursor.Y)
+		log.Printf("总行数 %d 比当前行 %d 小，可能存在解析错误 \n", len(s.Rows), s.Cursor.Y)
 		return s.Rows[len(s.Rows)-1]
 	}
 	return s.Rows[s.Cursor.Y-1]
