@@ -12,7 +12,7 @@ import (
 type Screen struct {
 	Rows []*Row
 
-	cursor *Cursor
+	Cursor *Cursor
 
 	pasteMode bool // Set bracketed paste mode, xterm. ?2004h   reset ?2004l
 
@@ -20,7 +20,7 @@ type Screen struct {
 }
 
 func (s *Screen) Parse(data []byte) []string {
-	s.cursor.Y = 1
+	s.Cursor.Y = 1
 	s.Rows = append(s.Rows, &Row{
 		dataRune: make([]rune, 0, 1024),
 	})
@@ -79,11 +79,11 @@ func (s *Screen) Parse(data []byte) []string {
 			if existIndex := bytes.IndexRune([]byte(string(C0Control)), code); existIndex >= 0 {
 				s.parseC0Sequence(code)
 			} else {
-				if len(s.Rows) == 0 && s.cursor.Y == 0 {
+				if len(s.Rows) == 0 && s.Cursor.Y == 0 {
 					s.Rows = append(s.Rows, &Row{
 						dataRune: make([]rune, 0, 1024),
 					})
-					s.cursor.Y++
+					s.Cursor.Y++
 				}
 				s.appendCharacter(code)
 			}
@@ -104,18 +104,18 @@ func (s *Screen) parseC0Sequence(code rune) {
 		//bell 忽略
 	case 0x08:
 		// 后退1光标
-		s.cursor.MoveLeft(1)
+		s.Cursor.MoveLeft(1)
 	case 0x0d:
 		/*
 			\r
 		*/
-		s.cursor.X = 0
+		s.Cursor.X = 0
 	case 0x0a:
 		/*
 			\n
 		*/
-		s.cursor.Y++
-		if s.cursor.Y > len(s.Rows) {
+		s.Cursor.Y++
+		if s.Cursor.Y > len(s.Rows) {
 			s.Rows = append(s.Rows, &Row{
 				dataRune: make([]rune, 0, 1024),
 			})
@@ -139,10 +139,10 @@ func (s *Screen) parseCSISequence(p []byte) []byte {
 			return p[endIndex+1:]
 		}
 		if row, err := strconv.Atoi(string(p[endIndex+1])); err == nil {
-			s.cursor.Y = row
+			s.Cursor.Y = row
 		}
 		if col, err := strconv.Atoi(string(p[endIndex+2])); err == nil {
-			s.cursor.X = col
+			s.Cursor.X = col
 		}
 		return p[endIndex+3:]
 
@@ -207,88 +207,88 @@ func (s *Screen) parseOSCSequence(p []byte) []byte {
 
 func (s *Screen) appendCharacter(code rune) {
 	currentRow := s.GetCursorRow()
-	currentRow.changeCursorToX(s.cursor.X)
+	currentRow.changeCursorToX(s.Cursor.X)
 	currentRow.appendCharacter(code)
 	width := runewidth.StringWidth(string(code))
-	s.cursor.X += width
+	s.Cursor.X += width
 }
 
 func (s *Screen) eraseEndToLine() {
-	log.Printf("eraseEndToLine %d %d %d\n", s.cursor.X,
-		s.cursor.Y, len(s.Rows))
+	log.Printf("eraseEndToLine %d %d %d\n", s.Cursor.X,
+		s.Cursor.Y, len(s.Rows))
 	currentRow := s.GetCursorRow()
-	currentRow.changeCursorToX(s.cursor.X)
+	currentRow.changeCursorToX(s.Cursor.X)
 	currentRow.eraseRight()
 
 }
 
 func (s *Screen) eraseRight() {
-	log.Printf("eraseRight %d %d %d\n", s.cursor.X,
-		s.cursor.Y, len(s.Rows))
+	log.Printf("eraseRight %d %d %d\n", s.Cursor.X,
+		s.Cursor.Y, len(s.Rows))
 	currentRow := s.GetCursorRow()
-	currentRow.changeCursorToX(s.cursor.X)
+	currentRow.changeCursorToX(s.Cursor.X)
 	currentRow.eraseRight()
 }
 
 func (s *Screen) eraseLeft() {
 	log.Printf("Screen %s EraseLeft， cursor(%d，%d),总Row数量 %d",
-		UnsupportedMsg, s.cursor.X, s.cursor.Y, len(s.Rows))
+		UnsupportedMsg, s.Cursor.X, s.Cursor.Y, len(s.Rows))
 }
 
 func (s *Screen) eraseAbove() {
-	log.Printf("eraseAbove %d %d %d", s.cursor.X,
-		s.cursor.Y, len(s.Rows))
-	s.Rows = s.Rows[s.cursor.Y-1:]
+	log.Printf("eraseAbove %d %d %d", s.Cursor.X,
+		s.Cursor.Y, len(s.Rows))
+	s.Rows = s.Rows[s.Cursor.Y-1:]
 }
 
 func (s *Screen) eraseBelow() {
-	log.Printf("eraseBelow %d %d %d", s.cursor.X,
-		s.cursor.Y, len(s.Rows))
-	s.Rows = s.Rows[:s.cursor.Y]
+	log.Printf("eraseBelow %d %d %d", s.Cursor.X,
+		s.Cursor.Y, len(s.Rows))
+	s.Rows = s.Rows[:s.Cursor.Y]
 }
 
 func (s *Screen) eraseAll() {
-	log.Printf("eraseAll %d %d %d", s.cursor.X,
-		s.cursor.Y, len(s.Rows))
+	log.Printf("eraseAll %d %d %d", s.Cursor.X,
+		s.Cursor.Y, len(s.Rows))
 	s.Rows = s.Rows[:0]
 	//htop?
-	s.cursor.X = 0
-	s.cursor.Y = 0
+	s.Cursor.X = 0
+	s.Cursor.Y = 0
 }
 
 func (s *Screen) eraseFromCursor() {
-	log.Printf("eraseFromCursor %d %d %d", s.cursor.X,
-		s.cursor.Y, len(s.Rows))
-	if s.cursor.Y > len(s.Rows) {
-		s.cursor.Y = len(s.Rows)
+	log.Printf("eraseFromCursor %d %d %d", s.Cursor.X,
+		s.Cursor.Y, len(s.Rows))
+	if s.Cursor.Y > len(s.Rows) {
+		s.Cursor.Y = len(s.Rows)
 	}
-	s.Rows = s.Rows[:s.cursor.Y]
-	s.Rows[s.cursor.Y-1].changeCursorToX(s.cursor.X)
-	s.Rows[s.cursor.Y-1].eraseRight()
+	s.Rows = s.Rows[:s.Cursor.Y]
+	s.Rows[s.Cursor.Y-1].changeCursorToX(s.Cursor.X)
+	s.Rows[s.Cursor.Y-1].eraseRight()
 }
 
 func (s *Screen) deleteChars(ps int) {
 	log.Printf("deleteChars %d chars \n", ps)
 	currentRow := s.GetCursorRow()
-	currentRow.changeCursorToX(s.cursor.X)
+	currentRow.changeCursorToX(s.Cursor.X)
 	currentRow.deleteChars(ps)
 }
 
 func (s *Screen) GetCursorRow() *Row {
-	if s.cursor.Y == 0 {
-		s.cursor.Y++
+	if s.Cursor.Y == 0 {
+		s.Cursor.Y++
 	}
 	if len(s.Rows) == 0 {
 		s.Rows = append(s.Rows, &Row{
 			dataRune: make([]rune, 0, 1024),
 		})
 	}
-	index := s.cursor.Y - 1
+	index := s.Cursor.Y - 1
 	if index >= len(s.Rows) {
-		log.Printf("总行数 %d 比当前行 %d 小，存在解析错误 \n", len(s.Rows), s.cursor.Y)
+		log.Printf("总行数 %d 比当前行 %d 小，存在解析错误 \n", len(s.Rows), s.Cursor.Y)
 		return s.Rows[len(s.Rows)-1]
 	}
-	return s.Rows[s.cursor.Y-1]
+	return s.Rows[s.Cursor.Y-1]
 }
 
 const UnsupportedMsg = "Unsupported"

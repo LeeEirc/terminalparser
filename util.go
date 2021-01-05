@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"strings"
 	"unicode"
+	"unicode/utf8"
 )
 
 func DebugString(p string) string {
@@ -25,4 +26,12 @@ func IsAlphabetic(r rune) bool {
 		return false
 	}
 	return true
+}
+
+func ReadRunePacket(p []byte) (code rune, rest []byte) {
+	r, l := utf8.DecodeRune(p)
+	if r == utf8.RuneError {
+		return utf8.RuneError, p
+	}
+	return r, p[l:]
 }

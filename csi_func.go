@@ -18,7 +18,7 @@ var CSIFuncMap = map[rune]screenCsiFunc{
 				for i := 0; i < ps; i++ {
 					insertData[i] = Spaces[0]
 				}
-				currentRow.changeCursorToX(s.cursor.X)
+				currentRow.changeCursorToX(s.Cursor.X)
 				currentRow.insertCharacters(insertData)
 			}
 		case 2:
@@ -28,7 +28,7 @@ var CSIFuncMap = map[rune]screenCsiFunc{
 				}
 			}
 		default:
-			currentRow.changeCursorToX(s.cursor.X)
+			currentRow.changeCursorToX(s.Cursor.X)
 			currentRow.insertCharacters([]rune{Spaces[0]})
 		}
 	},
@@ -41,24 +41,24 @@ var CSIFuncMap = map[rune]screenCsiFunc{
 		*/
 		switch len(params) {
 		case 0:
-			s.cursor.MoveUp(1)
+			s.Cursor.MoveUp(1)
 			log.Printf("Cursor Up %d Times \n", 1)
 		case 1:
 			if ps, err := strconv.Atoi(string(params)); err == nil {
-				s.cursor.MoveUp(ps)
+				s.Cursor.MoveUp(ps)
 				log.Printf("Cursor Up %d Times \n", ps)
 			}
 		case 2:
 			if params[len(params)-1] == Spaces[0] {
 				if ps, err := strconv.Atoi(string(params[0])); err == nil {
-					s.cursor.MoveRight(ps)
+					s.Cursor.MoveRight(ps)
 					log.Printf("Shift right %d columns(s) \n", ps)
 				}
 			}
 		default:
 			if params[len(params)-1] == Spaces[0] {
 				if ps, err := strconv.Atoi(string(params[0])); err == nil {
-					s.cursor.MoveRight(ps)
+					s.Cursor.MoveRight(ps)
 					log.Printf("Shift right %d columns(s) \n", ps)
 
 				}
@@ -74,10 +74,10 @@ var CSIFuncMap = map[rune]screenCsiFunc{
 		downPs := 1
 		switch len(params) {
 		case 0:
-			s.cursor.MoveDown(1)
+			s.Cursor.MoveDown(1)
 		default:
 			if ps, err := strconv.Atoi(string(params)); err == nil {
-				s.cursor.MoveDown(ps)
+				s.Cursor.MoveDown(ps)
 				downPs = ps
 			}
 		}
@@ -91,10 +91,10 @@ var CSIFuncMap = map[rune]screenCsiFunc{
 		switch len(params) {
 		case 0:
 			log.Println("光标右移动 1")
-			s.cursor.MoveRight(1)
+			s.Cursor.MoveRight(1)
 		default:
 			if ps, err := strconv.Atoi(string(params)); err == nil {
-				s.cursor.MoveRight(ps)
+				s.Cursor.MoveRight(ps)
 				log.Println("光标右移动 ", ps)
 			}
 		}
@@ -106,11 +106,11 @@ var CSIFuncMap = map[rune]screenCsiFunc{
 		*/
 		switch len(params) {
 		case 0:
-			s.cursor.MoveLeft(1)
+			s.Cursor.MoveLeft(1)
 			log.Println("光标左移动 1")
 		default:
 			if ps, err := strconv.Atoi(string(params)); err == nil {
-				s.cursor.MoveLeft(ps)
+				s.Cursor.MoveLeft(ps)
 				log.Println("光标左移动 ", ps)
 			}
 		}
@@ -122,11 +122,11 @@ var CSIFuncMap = map[rune]screenCsiFunc{
 		*/
 		switch len(params) {
 		case 0:
-			s.cursor.MoveDown(1)
+			s.Cursor.MoveDown(1)
 		default:
 			if ps, err := strconv.Atoi(string(params)); err == nil {
 				log.Println("光标下移行数: ", ps)
-				s.cursor.MoveDown(ps)
+				s.Cursor.MoveDown(ps)
 			}
 		}
 
@@ -137,16 +137,16 @@ var CSIFuncMap = map[rune]screenCsiFunc{
 		*/
 		switch len(params) {
 		case 0:
-			s.cursor.MoveUp(1)
+			s.Cursor.MoveUp(1)
 			log.Println("光标上移行数: 1")
 		case 1:
 			if ps, err := strconv.Atoi(string(params)); err == nil {
-				s.cursor.MoveUp(ps)
+				s.Cursor.MoveUp(ps)
 				log.Println("光标上移行数: ", ps)
 			}
 		default:
 			if ps, err := strconv.Atoi(string(params)); err == nil {
-				s.cursor.MoveUp(ps)
+				s.Cursor.MoveUp(ps)
 				log.Println("光标上移行数: ", ps)
 			}
 		}
@@ -158,22 +158,22 @@ var CSIFuncMap = map[rune]screenCsiFunc{
 		switch len(params) {
 		case 1:
 			if ps, err := strconv.Atoi(string(params)); err == nil {
-				s.cursor.X = ps
+				s.Cursor.X = ps
 			}
 		}
 	},
 	'H': func(s *Screen, params []rune) {
 		if len(params) == 3 && params[1] == ';' {
 			if row, err := strconv.Atoi(string(params[0])); err == nil {
-				s.cursor.Y = row
+				s.Cursor.Y = row
 			}
 			if column, err := strconv.Atoi(string(params[2])); err == nil {
-				s.cursor.X = column
+				s.Cursor.X = column
 			}
 		}
 		if len(params) == 0 {
 			log.Println("光标移动到开头")
-			s.cursor.MoveHome()
+			s.Cursor.MoveHome()
 		}
 	},
 	'J': func(s *Screen, params []rune) {
@@ -289,10 +289,10 @@ var CSIFuncMap = map[rune]screenCsiFunc{
 	'd': func(s *Screen, params []rune) {
 		switch len(params) {
 		case 0:
-			s.cursor.Y = 1
+			s.Cursor.Y = 1
 		default:
 			if ps, err := strconv.Atoi(string(params)); err == nil {
-				s.cursor.Y = ps
+				s.Cursor.Y = ps
 			}
 
 		}
@@ -317,8 +317,8 @@ var CSIFuncMap = map[rune]screenCsiFunc{
 					/*
 						针对fish的环境特殊处理
 					*/
-					if s.cursor.Y >= 1 && len(s.Rows) > 0 {
-						index := s.cursor.Y - 1
+					if s.Cursor.Y >= 1 && len(s.Rows) > 0 {
+						index := s.Cursor.Y - 1
 						if index >= len(s.Rows) {
 							index = len(s.Rows) - 1
 						}
@@ -326,8 +326,8 @@ var CSIFuncMap = map[rune]screenCsiFunc{
 					}
 
 				case 90:
-					if s.cursor.Y >= 1 && len(s.Rows) > 0 {
-						index := s.cursor.Y - 1
+					if s.Cursor.Y >= 1 && len(s.Rows) > 0 {
+						index := s.Cursor.Y - 1
 						if index >= len(s.Rows) {
 							index = len(s.Rows) - 1
 						}
