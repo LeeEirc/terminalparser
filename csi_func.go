@@ -176,7 +176,6 @@ var CSIFuncMap = map[rune]screenCsiFunc{
 		case 0:
 			s.eraseFromCursor()
 		case 1:
-			log.Printf("Erase in Display  %s\n", string(params))
 			if ps, err := strconv.Atoi(string(params[0])); err == nil {
 				switch ps {
 				case 0:
