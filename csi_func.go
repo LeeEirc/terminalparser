@@ -24,7 +24,7 @@ var CSIFuncMap = map[rune]screenCsiFunc{
 		case 2:
 			if params[len(params)-1] == Spaces[0] {
 				if _, err := strconv.Atoi(string(params[0])); err == nil {
-					log.Println("不支持")
+					log.Printf("Screen 不支持解析 CSI `%s` @\n", string(params))
 				}
 			}
 		default:
@@ -42,11 +42,9 @@ var CSIFuncMap = map[rune]screenCsiFunc{
 		switch len(params) {
 		case 0:
 			s.Cursor.MoveUp(1)
-			log.Printf("Cursor Up %d Times \n", 1)
 		case 1:
 			if ps, err := strconv.Atoi(string(params)); err == nil {
 				s.Cursor.MoveUp(ps)
-				log.Printf("Cursor Up %d Times \n", ps)
 			}
 		case 2:
 			if params[len(params)-1] == Spaces[0] {
@@ -71,18 +69,15 @@ var CSIFuncMap = map[rune]screenCsiFunc{
 		/*
 			CSI Ps B  Cursor Down Ps Times (default = 1) (CUD).
 		*/
-		downPs := 1
 		switch len(params) {
 		case 0:
 			s.Cursor.MoveDown(1)
 		default:
 			if ps, err := strconv.Atoi(string(params)); err == nil {
 				s.Cursor.MoveDown(ps)
-				downPs = ps
 			}
 		}
 
-		log.Printf("光标下移 %d\n", downPs)
 	},
 	'C': func(s *Screen, params []rune) {
 		/*
@@ -90,12 +85,10 @@ var CSIFuncMap = map[rune]screenCsiFunc{
 		*/
 		switch len(params) {
 		case 0:
-			log.Println("光标右移动 1")
 			s.Cursor.MoveRight(1)
 		default:
 			if ps, err := strconv.Atoi(string(params)); err == nil {
 				s.Cursor.MoveRight(ps)
-				log.Println("光标右移动 ", ps)
 			}
 		}
 
@@ -107,11 +100,9 @@ var CSIFuncMap = map[rune]screenCsiFunc{
 		switch len(params) {
 		case 0:
 			s.Cursor.MoveLeft(1)
-			log.Println("光标左移动 1")
 		default:
 			if ps, err := strconv.Atoi(string(params)); err == nil {
 				s.Cursor.MoveLeft(ps)
-				log.Println("光标左移动 ", ps)
 			}
 		}
 	},
@@ -125,7 +116,6 @@ var CSIFuncMap = map[rune]screenCsiFunc{
 			s.Cursor.MoveDown(1)
 		default:
 			if ps, err := strconv.Atoi(string(params)); err == nil {
-				log.Println("光标下移行数: ", ps)
 				s.Cursor.MoveDown(ps)
 			}
 		}
@@ -138,16 +128,13 @@ var CSIFuncMap = map[rune]screenCsiFunc{
 		switch len(params) {
 		case 0:
 			s.Cursor.MoveUp(1)
-			log.Println("光标上移行数: 1")
 		case 1:
 			if ps, err := strconv.Atoi(string(params)); err == nil {
 				s.Cursor.MoveUp(ps)
-				log.Println("光标上移行数: ", ps)
 			}
 		default:
 			if ps, err := strconv.Atoi(string(params)); err == nil {
 				s.Cursor.MoveUp(ps)
-				log.Println("光标上移行数: ", ps)
 			}
 		}
 	},
@@ -172,7 +159,6 @@ var CSIFuncMap = map[rune]screenCsiFunc{
 			}
 		}
 		if len(params) == 0 {
-			log.Println("光标移动到开头")
 			s.Cursor.MoveHome()
 		}
 	},
@@ -232,7 +218,7 @@ var CSIFuncMap = map[rune]screenCsiFunc{
 		default:
 			paramsS := string(params)
 			if strings.HasPrefix(paramsS, "?") {
-				log.Printf("Screen对 CSI %s K 未处理\n", paramsS)
+				log.Printf("Screen不支持解析 CSI `%s` K\n", paramsS)
 				return
 			}
 			if ps, err := strconv.Atoi(paramsS); err == nil {
@@ -254,13 +240,13 @@ var CSIFuncMap = map[rune]screenCsiFunc{
 		/*
 			CSI Ps L  Insert Ps Line(s) (default = 1) (IL).
 		*/
-		log.Println("不支持L")
+		log.Println("Screen不支持解析L")
 	},
 	'M': func(o *Screen, params []rune) {
 		/*
 			CSI Ps M  Delete Ps Line(s) (default = 1) (DL).
 		*/
-		log.Println("不支持M")
+		log.Println("Screen不支持解析M")
 	},
 	'P': func(s *Screen, params []rune) {
 		/*
@@ -299,11 +285,11 @@ var CSIFuncMap = map[rune]screenCsiFunc{
 	},
 
 	'l': func(screen *Screen, params []rune) {
-		log.Println("不支持l")
+		log.Println("Screen不支持解析l")
 		screen.pasteMode = false
 	},
 	'h': func(screen *Screen, params []rune) {
-		log.Println("不支持h")
+		log.Println("Screen不支持解析h")
 		screen.pasteMode = true
 	},
 

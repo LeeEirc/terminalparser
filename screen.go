@@ -240,8 +240,9 @@ func (s *Screen) eraseFromCursor() {
 		s.Cursor.Y = len(s.Rows)
 	}
 	s.Rows = s.Rows[:s.Cursor.Y]
-	s.Rows[s.Cursor.Y-1].changeCursorToX(s.Cursor.X)
-	s.Rows[s.Cursor.Y-1].eraseRight()
+	currentRow := s.GetCursorRow()
+	currentRow.changeCursorToX(s.Cursor.X)
+	currentRow.eraseRight()
 }
 
 func (s *Screen) deleteChars(ps int) {
