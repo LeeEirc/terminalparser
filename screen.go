@@ -101,6 +101,11 @@ func (s *Screen) parseC0Sequence(code rune) {
 			\r
 		*/
 		s.Cursor.X = 0
+		if s.Cursor.Y > len(s.Rows) {
+			s.Rows = append(s.Rows, &Row{
+				dataRune: make([]rune, 0, 1024),
+			})
+		}
 	case 0x0a:
 		/*
 			\n
