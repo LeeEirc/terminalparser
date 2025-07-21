@@ -17,6 +17,88 @@ type Screen struct {
 	pasteMode bool // Set bracketed paste mode, xterm. ?2004h   reset ?2004l
 
 	title string
+
+	buffer bytes.Buffer
+}
+
+func (s *Screen) Feed(p []byte) {
+	s.buffer.Write(p)
+	remainBytes := s.buffer.Bytes()
+	if len(remainBytes) > 100 {
+		s.TryParse()
+	}
+}
+
+func (s *Screen) TryParse() {
+	remainBytes := s.buffer.Bytes()
+	remain := s.parse(remainBytes)
+	s.buffer.Reset()
+	s.buffer.Write(remain)
+}
+
+func (s *Screen) GetRows() []*Row {
+	return s.Rows
+}
+
+func (s *Screen) parse(data []byte) []byte {
+	rest := data
+	for len(rest) > 0 {
+		code, size := utf8.DecodeRune(rest)
+		rest = rest[size:]
+		switch code {
+		case ESCKey:
+			code, size = utf8.DecodeRune(rest)
+			rest = rest[size:]
+			switch code {
+			case '[':
+				// CSI
+				rest = s.parseCSISequence(rest)
+				continue
+			case ']':
+				// OSC
+				rest = s.parseOSCSequence(rest)
+				continue
+			default:
+				if existIndex := bytes.IndexRune([]byte(string(Intermediate)), code); existIndex >= 0 {
+					// ESC
+					rest = s.parseIntermediate(code, rest)
+					continue
+				}
+				if existIndex := bytes.IndexRune([]byte(string(Parameters)), code); existIndex >= 0 {
+
+					log.Printf("Screen 未解析 ESC `%q` %xParameters字符\n", code, code)
+					continue
+				}
+				if existIndex := bytes.IndexRune([]byte(string(Uppercase)), code); existIndex >= 0 {
+					log.Printf("Screen 未解析 ESC `%q` %x Uppercase字符\n", code, code)
+					continue
+				}
+
+				if existIndex := bytes.IndexRune([]byte(string(Lowercase)), code); existIndex >= 0 {
+					log.Printf("Screen 未解析 ESC `%q` %x Lowercase字符\n", code, code)
+					continue
+				}
+				log.Printf("Screen 未解析 ESC `%q` %x\n", code, code)
+			}
+			continue
+		case Delete:
+			continue
+		default:
+			if existIndex := bytes.IndexRune([]byte(string(C0Control)), code); existIndex >= 0 {
+				s.parseC0Sequence(code)
+			} else {
+				if len(s.Rows) == 0 && s.Cursor.Y == 0 {
+					s.Rows = append(s.Rows, &Row{
+						dataRune: make([]rune, 0, 1024),
+					})
+					s.Cursor.Y++
+				}
+				s.appendCharacter(code)
+			}
+			continue
+		}
+	}
+	return rest
 }
 
 func (s *Screen) Parse(data []byte) []string {
