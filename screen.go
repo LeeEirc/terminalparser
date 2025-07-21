@@ -23,10 +23,7 @@ type Screen struct {
 
 func (s *Screen) Feed(p []byte) {
 	s.buffer.Write(p)
-	remainBytes := s.buffer.Bytes()
-	if len(remainBytes) > 100 {
-		s.TryParse()
-	}
+	s.TryParse()
 }
 
 func (s *Screen) TryParse() {

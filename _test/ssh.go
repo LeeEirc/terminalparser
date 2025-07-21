@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"github.com/LeeEirc/terminalparser"
 	"io"
 	"log"
 
@@ -40,6 +41,7 @@ type SSHClient struct {
 	stdin   io.WriteCloser
 	stdout  io.Reader
 	stderr  io.ReadCloser
+	screen  terminalparser.Screen
 }
 
 func (s *SSHClient) Resize(w, h int) {
@@ -54,6 +56,11 @@ func (s *SSHClient) Write(p []byte) (int, error) {
 
 func (s *SSHClient) Read(p []byte) (int, error) {
 	nr, err := s.stdout.Read(p)
+	s.screen.Feed(p[:nr])
+
+	row := s.screen.GetCursorRow()
+	fmt.Println(row)
+
 	return nr, err
 }
 
@@ -84,12 +91,17 @@ func NewSSHClient(cfg *Config, w, h int) (*SSHClient, error) {
 	if err = session.Shell(); err != nil {
 		return nil, err
 	}
+	screen := terminalparser.Screen{
+		Rows:   make([]*terminalparser.Row, 0, 1024),
+		Cursor: &terminalparser.Cursor{},
+	}
 
 	return &SSHClient{
 		client:  client,
 		session: session,
 		stdin:   stdin,
 		stdout:  stdout,
+		screen:  screen,
 	}, nil
 
 }

@@ -55,7 +55,6 @@ func HandleWsSSH(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 	defer sshClient.client.Close()
-	sshClient.Resize(100, 20)
 	wg.Add(2)
 	go func() {
 		defer wg.Done()
