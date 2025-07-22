@@ -25,7 +25,7 @@ return {
   },
   base: env.VITE_PUBLIC_PATH,
   server: {
-    port: 9530,
+    port: 9540,
     proxy: {
       '^/ws/ssh/': {
         target: env.VITE_KOKO_WS_URL,

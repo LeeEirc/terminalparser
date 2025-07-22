@@ -1,6 +1,7 @@
 package terminalparser
 
 import (
+	"os"
 	"testing"
 )
 
@@ -35,4 +36,15 @@ func testEq(a, b []string) bool {
 		}
 	}
 	return true
+}
+
+func TestParse(t *testing.T) {
+	outfile := "output_windows.txt"
+	s := NewScreen(60, 80)
+	buf, _ := os.ReadFile(outfile)
+	s.Parse(buf)
+	for i := range s.Rows {
+		t.Logf("Row %d: %s", i, s.Rows[i].String())
+	}
+	t.Logf("%+v", s.Cursor)
 }

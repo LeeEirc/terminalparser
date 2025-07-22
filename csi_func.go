@@ -1,7 +1,6 @@
 package terminalparser
 
 import (
-	"log"
 	"strconv"
 	"strings"
 )
@@ -19,7 +18,7 @@ var CSIFuncMap = map[rune]screenCsiFunc{
 			currentRow.changeCursorToX(s.Cursor.X)
 			currentRow.insertCharacters(insertData)
 		} else {
-			log.Printf("Screen 不支持解析 CSI `%s` @\n", string(params))
+			Printf("Screen 不支持解析 CSI `%s` @\n", string(params))
 		}
 	},
 	'A': func(s *Screen, params []rune) {
@@ -40,14 +39,14 @@ var CSIFuncMap = map[rune]screenCsiFunc{
 			if params[len(params)-1] == Spaces[0] {
 				if ps, err := strconv.Atoi(string(params[0])); err == nil {
 					s.Cursor.MoveRight(ps)
-					log.Printf("Shift right %d columns(s) \n", ps)
+					Printf("Shift right %d columns(s) \n", ps)
 				}
 			}
 		default:
 			if params[len(params)-1] == Spaces[0] {
 				if ps, err := strconv.Atoi(string(params[0])); err == nil {
 					s.Cursor.MoveRight(ps)
-					log.Printf("Shift right %d columns(s) \n", ps)
+					Printf("Shift right %d columns(s) \n", ps)
 
 				}
 			}
@@ -129,7 +128,7 @@ var CSIFuncMap = map[rune]screenCsiFunc{
 		}
 	},
 	'I': func(screen *Screen, params []rune) {
-		log.Println("Screen 不支持 I")
+		Printf("Screen 不支持 I %+v", params)
 	},
 	'G': func(s *Screen, params []rune) {
 		switch len(params) {
@@ -175,15 +174,15 @@ var CSIFuncMap = map[rune]screenCsiFunc{
 				case 2:
 					s.eraseAll()
 				case 3:
-					log.Println("screen 未处理Erase Saved Lines, xterm.")
+					Printf("screen 未处理 Erase Saved Lines, xterm.")
 				default:
-					log.Printf("screen 未处理 Erase.%d \n", ps)
+					Printf("screen 未处理 Erase.%d \n", ps)
 				}
 			}
 		case 2:
-			log.Printf("screen 未处理 Erase in Display (DECSED), VT220. %s\n", string(params))
+			Printf("screen 未处理 Erase in Display (DECSED), VT220. %s\n", string(params))
 		default:
-			log.Printf("screen 未处理 Erase %s\n", string(params))
+			Printf("screen 未处理 Erase %s\n", string(params))
 		}
 	},
 	'K': func(s *Screen, params []rune) {
@@ -207,7 +206,7 @@ var CSIFuncMap = map[rune]screenCsiFunc{
 		default:
 			paramsS := string(params)
 			if strings.HasPrefix(paramsS, "?") {
-				log.Printf("Screen不支持解析 CSI `%s` K\n", paramsS)
+				Printf("Screen不支持解析 CSI `%s` K\n", paramsS)
 				return
 			}
 			if ps, err := strconv.Atoi(paramsS); err == nil {
@@ -219,7 +218,7 @@ var CSIFuncMap = map[rune]screenCsiFunc{
 				case 2:
 					s.eraseAll()
 				default:
-					log.Printf("未处理erase %d\n", ps)
+					Printf("未处理erase %d\n", ps)
 				}
 			}
 
@@ -229,13 +228,13 @@ var CSIFuncMap = map[rune]screenCsiFunc{
 		/*
 			CSI Ps L  Insert Ps Line(s) (default = 1) (IL).
 		*/
-		log.Println("Screen不支持解析L")
+		Printf("Screen不支持解析L %+v\n", params)
 	},
 	'M': func(o *Screen, params []rune) {
 		/*
 			CSI Ps M  Delete Ps Line(s) (default = 1) (DL).
 		*/
-		log.Println("Screen不支持解析M")
+		Printf("Screen不支持解析M %+v\n", params)
 	},
 	'P': func(s *Screen, params []rune) {
 		/*
@@ -274,12 +273,15 @@ var CSIFuncMap = map[rune]screenCsiFunc{
 	},
 
 	'l': func(screen *Screen, params []rune) {
-		log.Println("Screen不支持解析l")
+		//Printf("Screen不支持解析l %s\n", string(params))
 		screen.pasteMode = false
+		screen.Cursor.Hide = true
+
 	},
 	'h': func(screen *Screen, params []rune) {
-		log.Println("Screen不支持解析h")
+		//log.Printf("Screen不支持解析h %s\n", string(params))
 		screen.pasteMode = true
+		screen.Cursor.Hide = false
 	},
 
 	'm': func(s *Screen, params []rune) {
@@ -309,6 +311,7 @@ var CSIFuncMap = map[rune]screenCsiFunc{
 						s.Rows[index].startRecord()
 					}
 				default:
+					Printf("Screen不支持解析m %s\n", string(params))
 				}
 			}
 		}

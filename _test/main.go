@@ -17,7 +17,7 @@ var cfg = Config{}
 
 func main() {
 	LoadCfgFromEnv(&cfg)
-	cfg.Username = "root"
+	loadConfigFromFile("config.yml", &cfg)
 	log.Printf("Config: %#v\n", cfg)
 	http.HandleFunc("/ws/ssh/", HandleWsSSH)
 	log.Fatal(http.ListenAndServe(":5858", nil))
@@ -49,7 +49,7 @@ func HandleWsSSH(w http.ResponseWriter, req *http.Request) {
 
 	defer conn.Close()
 	wg := sync.WaitGroup{}
-	sshClient, err := NewSSHClient(&cfg, 80, 20)
+	sshClient, err := NewSSHClient(&cfg, 80, 60)
 	if err != nil {
 		log.Println(err)
 		return
@@ -73,8 +73,8 @@ func HandleWsSSH(w http.ResponseWriter, req *http.Request) {
 				if err = json.Unmarshal(p, &wdSize); err != nil {
 					continue
 				}
-				log.Println("wdSize:", wdSize)
-				sshClient.Resize(wdSize.Width, wdSize.High)
+				//log.Println("wdSize:", wdSize)
+				//sshClient.Resize(wdSize.Width, wdSize.High)
 			default:
 
 			}
@@ -84,11 +84,12 @@ func HandleWsSSH(w http.ResponseWriter, req *http.Request) {
 
 	go func() {
 		defer wg.Done()
+		buf := make([]byte, maxMessageSize)
 		for {
-			buf := make([]byte, maxMessageSize)
 			n, err1 := sshClient.Read(buf)
 			if err1 != nil {
 				log.Println("sshClient.Read:", err)
+				return
 			}
 			err2 := conn.WriteMessage(websocket.TextMessage, buf[:n])
 			if err2 != nil {
@@ -96,7 +97,6 @@ func HandleWsSSH(w http.ResponseWriter, req *http.Request) {
 				return
 			}
 		}
-
 	}()
 
 	wg.Wait()
@@ -114,5 +114,16 @@ func LoadCfgFromEnv(conf *Config) {
 	if err := envViper.Unmarshal(conf); err == nil {
 		log.Printf("Load config from env %+v\n", conf)
 
+	}
+}
+
+func loadConfigFromFile(path string, conf *Config) {
+	var err error
+	fileViper := viper.New()
+	fileViper.SetConfigFile(path)
+	if err = fileViper.ReadInConfig(); err == nil {
+		if err = fileViper.Unmarshal(conf); err == nil {
+			log.Printf("Load config from %s success\n", path)
+		}
 	}
 }

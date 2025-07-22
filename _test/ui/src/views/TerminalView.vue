@@ -17,7 +17,13 @@ onMounted(()=>{
   const wsURL = `${BASE_WS_URL}/ws/ssh/`;
   const ws = new WebSocket(wsURL);
   wsRef.value= ws
-  const terminal = new Terminal();
+  const terminal = new Terminal(
+    {
+      fontSize: 16,
+      cols: 80,
+      rows: 60,
+    }
+  );
 
   const attachAddon = new AttachAddon(ws);
   terminal.loadAddon(attachAddon);
@@ -28,8 +34,9 @@ onMounted(()=>{
 })
 
 const sendSize = () => {
-  const windowSize = {high: terminalRef.value.rows, width: terminalRef.value.cols};
+  const windowSize = {high:terminalRef.value.rows, width: terminalRef.value.cols};
   const blob = new Blob([JSON.stringify(windowSize)], {type : 'application/json'});
+  console.log(windowSize)
   wsRef.value.send(blob);
 }
 
@@ -38,21 +45,32 @@ watch([width, height], ([_newWidth, _newHeight]: [number, number]) => {
   if (!terminalRef.value || !fitAddon) return;
 
   nextTick(() => {
-    fitAddon.fit();
+    // fitAddon.fit();
     sendSize()
   });
 });
-
-
+// fonts.size
+const elem = document.body; // 或 document.querySelector('#your-element-id')
+const fontSize = window.getComputedStyle(elem).fontSize;
+console.log(`字体大小为: ${fontSize}`);
+const fontSizeNumber = parseFloat(fontSize);
+const cols = Math.floor(800 / fontSizeNumber);
+const rows = Math.floor(600 / fontSizeNumber);
 </script>
 
 
 <template>
-<div id="terminal" class="h-full w-full" style="height: calc(100vh)">
+<div id="terminal">
 </div>
+  <div>
+  {{fontSize }} | {{ cols }} | {{rows}}
+
+  </div>
 </template>
 
 <style scoped>
-@import "@xterm/xterm/css/xterm.css";
-
+#terminal {
+  width: 800px;
+  height: 600px;
+}
 </style>
