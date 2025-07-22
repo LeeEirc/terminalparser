@@ -35,10 +35,10 @@ func (s *Parser) Feed(p []byte) {
 	s.mux.Lock()
 	defer s.mux.Unlock()
 	fmt.Println(hex.Dump(p))
-	if s.fd == nil {
-		s.fd, _ = os.Create("output.txt")
-	}
-	_, _ = s.fd.Write(p)
+	//if s.fd == nil {
+	//	s.fd, _ = os.Create("output.txt")
+	//}
+	//_, _ = s.fd.Write(p)
 	s.screen.Feed(p)
 	if s.state == waitOut {
 		s.outputBuf.Write(p)
