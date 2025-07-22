@@ -1,5 +1,4 @@
-import './assets/main.css'
-
+import 'tailwindcss';
 import { createApp } from 'vue'
 import { createPinia } from 'pinia'
 // 引入 xterm 样式

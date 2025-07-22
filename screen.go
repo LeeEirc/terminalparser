@@ -9,6 +9,19 @@ import (
 	"github.com/mattn/go-runewidth"
 )
 
+func NewScreen(r, c int) Screen {
+	rows := make([]*Row, r)
+	for i := range rows {
+		rows[i] = &Row{dataRune: make([]rune, 0, c), MaxColNum: c}
+	}
+	return Screen{
+		Rows:    rows,
+		Cursor:  &Cursor{X: 1, Y: 1},
+		ColLens: c,
+		RowLens: r,
+	}
+}
+
 type Screen struct {
 	Rows []*Row
 
@@ -18,7 +31,9 @@ type Screen struct {
 
 	title string
 
-	buffer bytes.Buffer
+	buffer  bytes.Buffer
+	ColLens int
+	RowLens int
 }
 
 func (s *Screen) Feed(p []byte) {
@@ -41,10 +56,17 @@ func (s *Screen) parse(data []byte) []byte {
 	rest := data
 	for len(rest) > 0 {
 		code, size := utf8.DecodeRune(rest)
+		if code == utf8.RuneError {
+			return rest
+		}
+
 		rest = rest[size:]
 		switch code {
 		case ESCKey:
 			code, size = utf8.DecodeRune(rest)
+			if code == utf8.RuneError {
+				return rest
+			}
 			rest = rest[size:]
 			switch code {
 			case '[':
@@ -99,73 +121,12 @@ func (s *Screen) parse(data []byte) []byte {
 }
 
 func (s *Screen) Parse(data []byte) []string {
-	s.Cursor.Y = 1
-	s.Rows = append(s.Rows, &Row{
-		dataRune: make([]rune, 0, 1024),
-	})
-	rest := data
-	for len(rest) > 0 {
-		code, size := utf8.DecodeRune(rest)
-		rest = rest[size:]
-		switch code {
-		case ESCKey:
-			code, size = utf8.DecodeRune(rest)
-			rest = rest[size:]
-			switch code {
-			case '[':
-				// CSI
-				rest = s.parseCSISequence(rest)
-				continue
-			case ']':
-				// OSC
-				rest = s.parseOSCSequence(rest)
-				continue
-			default:
-				if existIndex := bytes.IndexRune([]byte(string(Intermediate)), code); existIndex >= 0 {
-					// ESC
-					rest = s.parseIntermediate(code, rest)
-					continue
-				}
-				if existIndex := bytes.IndexRune([]byte(string(Parameters)), code); existIndex >= 0 {
-
-					log.Printf("Screen 未解析 ESC `%q` %xParameters字符\n", code, code)
-					continue
-				}
-				if existIndex := bytes.IndexRune([]byte(string(Uppercase)), code); existIndex >= 0 {
-					log.Printf("Screen 未解析 ESC `%q` %x Uppercase字符\n", code, code)
-					continue
-				}
-
-				if existIndex := bytes.IndexRune([]byte(string(Lowercase)), code); existIndex >= 0 {
-					log.Printf("Screen 未解析 ESC `%q` %x Lowercase字符\n", code, code)
-					continue
-				}
-				log.Printf("Screen 未解析 ESC `%q` %x\n", code, code)
-			}
-			continue
-		case Delete:
-			continue
-		default:
-			if existIndex := bytes.IndexRune([]byte(string(C0Control)), code); existIndex >= 0 {
-				s.parseC0Sequence(code)
-			} else {
-				if len(s.Rows) == 0 && s.Cursor.Y == 0 {
-					s.Rows = append(s.Rows, &Row{
-						dataRune: make([]rune, 0, 1024),
-					})
-					s.Cursor.Y++
-				}
-				s.appendCharacter(code)
-			}
-			continue
-		}
-
+	s.parse(data)
+	ret := make([]string, 0, len(s.Rows))
+	for _, row := range s.Rows {
+		ret = append(ret, row.String())
 	}
-	result := make([]string, len(s.Rows))
-	for i := range s.Rows {
-		result[i] = s.Rows[i].String()
-	}
-	return result
+	return ret
 }
 
 func (s *Screen) parseC0Sequence(code rune) {

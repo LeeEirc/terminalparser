@@ -229,13 +229,13 @@ var CSIFuncMap = map[rune]screenCsiFunc{
 		/*
 			CSI Ps L  Insert Ps Line(s) (default = 1) (IL).
 		*/
-		log.Println("Screen不支持解析L")
+		log.Printf("Screen不支持解析L %+v\n", params)
 	},
 	'M': func(o *Screen, params []rune) {
 		/*
 			CSI Ps M  Delete Ps Line(s) (default = 1) (DL).
 		*/
-		log.Println("Screen不支持解析M")
+		log.Printf("Screen不支持解析M %+v\n", params)
 	},
 	'P': func(s *Screen, params []rune) {
 		/*
@@ -274,12 +274,15 @@ var CSIFuncMap = map[rune]screenCsiFunc{
 	},
 
 	'l': func(screen *Screen, params []rune) {
-		log.Println("Screen不支持解析l")
+		//log.Printf("Screen不支持解析l %s\n", string(params))
 		screen.pasteMode = false
+		screen.Cursor.Hide = true
+
 	},
 	'h': func(screen *Screen, params []rune) {
-		log.Println("Screen不支持解析h")
+		//log.Printf("Screen不支持解析h %s\n", string(params))
 		screen.pasteMode = true
+		screen.Cursor.Hide = false
 	},
 
 	'm': func(s *Screen, params []rune) {
@@ -309,6 +312,7 @@ var CSIFuncMap = map[rune]screenCsiFunc{
 						s.Rows[index].startRecord()
 					}
 				default:
+					log.Printf("Screen不支持解析m %s\n", string(params))
 				}
 			}
 		}

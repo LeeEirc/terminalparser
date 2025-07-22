@@ -14,6 +14,7 @@ type Row struct {
 	// fish shell 补全提示
 	tipRune   []rune
 	tipRecord bool
+	MaxColNum int
 }
 
 func (r *Row) String() string {
@@ -26,7 +27,6 @@ func (r *Row) appendCharacter(code rune) {
 		r.dataRune[r.currentRuneIndex] = code
 	} else {
 		r.dataRune = append(r.dataRune, code)
-
 	}
 	r.currentRuneIndex++
 	r.currentX += width
