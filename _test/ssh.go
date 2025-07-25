@@ -43,7 +43,7 @@ type SSHClient struct {
 	stdin   io.WriteCloser
 	stdout  io.Reader
 	stderr  io.ReadCloser
-	Parser  *Parser
+	Parser  *TerminalParser
 }
 
 func (s *SSHClient) Resize(w, h int) {
@@ -96,7 +96,7 @@ func NewSSHClient(cfg *Config, w, h int) (*SSHClient, error) {
 		session: session,
 		stdin:   stdin,
 		stdout:  stdout,
-		Parser:  &Parser{screen: screen},
+		Parser:  &TerminalParser{Screen: screen},
 	}, nil
 
 }

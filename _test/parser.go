@@ -2,106 +2,171 @@ package main
 
 import (
 	"bytes"
-	"encoding/hex"
 	"fmt"
 	"os"
 	"strings"
 	"sync"
-	"time"
 
 	"github.com/LeeEirc/terminalparser"
 )
 
-const (
-	enter = iota + 1
-	waitOut
-	input
+var terminalDebug = true
+var charEnter = []byte("\r")
 
-	enterKey = '\r'
+func DefaultEnterKeyPressHandler(p []byte) bool {
+	return p[len(p)-1] == charEnter[0]
+}
+
+const maxBufSize = 1024 * 100
+
+const (
+	InputPreState = iota + 1
+	InputState
+	InVimState
+	OutputState
 )
 
-type Parser struct {
-	inputBuf  bytes.Buffer
-	outputBuf bytes.Buffer
-	Ps1sStr   string
-	screen    terminalparser.Screen
-	state     int
-	once      sync.Once
-	mux       sync.Mutex
-	fd        *os.File
+func init() {
+	if os.Getenv("TERMINALPARSER") != "" {
+		terminalDebug = true
+	}
 }
 
-func (s *Parser) Feed(p []byte) {
+type TerminalParser struct {
+	InputBuf bytes.Buffer
+	Ps1sStr  string
+	Screen   terminalparser.Screen
+	state    int
+	once     sync.Once
+	mux      sync.Mutex
+
+	IsEnter func(p []byte) bool
+	cmd     string
+
+	EmitCommands func(cmd, out string)
+}
+
+func (s *TerminalParser) SetState(state int) {
+	s.state = state
+}
+
+func (s *TerminalParser) resetCommand() {
+	s.cmd = ""
+
+}
+
+func (s *TerminalParser) Feed(p []byte) {
+	defer func() {
+		if r := recover(); r != nil {
+			fmt.Println("Recovered from panic:", r)
+		}
+	}()
 	s.mux.Lock()
 	defer s.mux.Unlock()
-	fmt.Println(hex.Dump(p))
-	//if s.fd == nil {
-	//	s.fd, _ = os.Create("output.txt")
-	//}
-	//_, _ = s.fd.Write(p)
-	s.screen.Feed(p)
-	if s.state == waitOut {
-		s.outputBuf.Write(p)
-	}
-	fmt.Println("===========terminal  start============>")
-	rowLen := len(s.screen.Rows)
-	start := 0
-	if rowLen > 5 {
-		start = rowLen - 5
-	}
-	for i := range s.screen.Rows {
-		if i < start {
-			continue
+	s.Screen.Feed(p)
+	if s.state == OutputState {
+		currentRow := s.Screen.GetCursorRow()
+		if currentRow.String() == s.Ps1sStr && s.cmd != "" {
+			outputBuf := s.TryOutput()
+			if s.EmitCommands != nil {
+				s.EmitCommands(s.cmd, outputBuf)
+			}
+			if terminalDebug {
+				// 从这里找上一个匹配的 ps1 row，然后这之间的 rows 就是output
+				fmt.Println("============= match ps1 command================")
+				fmt.Println("ps1: ", s.Ps1sStr)
+				fmt.Println("command input:  ", s.cmd)
+				fmt.Println("command output: ", outputBuf)
+				fmt.Println("===============================================")
+				// 这个时候应该是 输入状态了，命令结束了
+			}
+			s.cmd = ""
+			return
 		}
-		row := s.screen.Rows[i]
-		fmt.Println(row.String())
 	}
-	fmt.Println()
-	row := s.screen.GetCursorRow()
-	if row.String() == s.Ps1sStr {
-		fmt.Println("current output: ", s.outputBuf.String())
-	}
-	fmt.Println("===>current ps1:  ", s.Ps1sStr)
-	fmt.Printf("===========terminal end total {%d}============>\n", len(s.screen.Rows))
+	s.PrintLatestLines(10)
 }
 
-func (s *Parser) IsEnterKey(p []byte) bool {
-	return p[len(p)-1] == enterKey
+func (s *TerminalParser) OnSize() {
+
 }
 
-func (s *Parser) WriteInput(chars []byte) (string, bool) {
+func (s *TerminalParser) PrintLatestLines(num int) {
+	if !terminalDebug {
+		return
+	}
+	maxRow := len(s.Screen.Rows)
+	start := maxRow - num
+	if start < 0 {
+		start = 0
+	}
+	for i := start; i < maxRow; i++ {
+		fmt.Println(s.Screen.Rows[i].String())
+	}
+}
+
+func (s *TerminalParser) TryOutput() string {
+	// 从这里找上一个匹配的 ps1 row，然后这之间的 rows 就是output
+	rows := s.Screen.Rows
+	maxRows := len(rows) - 1
+	outputRows := make([]string, 0, maxRows)
+	for i := maxRows - 1; i >= 0; i-- {
+		row := rows[i]
+		// insert row to outputRows first
+		if strings.HasPrefix(row.String(), s.Ps1sStr) {
+			break
+		}
+		outputRows = append(outputRows, row.String())
+	}
+	var outputBuf bytes.Buffer
+	for i := len(outputRows) - 1; i >= 0; i-- {
+		outputBuf.WriteString(outputRows[i])
+		outputBuf.Write([]byte{'\r', '\n'})
+	}
+	return outputBuf.String()
+}
+
+func (s *TerminalParser) WriteInput(chars []byte) (string, bool) {
 	if len(chars) == 0 {
 		return "", false
 	}
 	s.mux.Lock()
 	defer s.mux.Unlock()
+
 	s.once.Do(func() {
-		s.state = input
+		s.state = InputState
 		s.Ps1sStr = s.GetPs1()
 	})
-	if s.IsEnterKey(chars) {
-		s.state = waitOut
-		lastLine := s.screen.GetCursorRow()
-		cmd := strings.TrimPrefix(lastLine.String(), s.Ps1sStr)
-		fmt.Println("命令： ", cmd)
-		fmt.Println("用户输入的：", s.inputBuf.String())
-		time.Sleep(time.Millisecond * 1000)
-		s.inputBuf.Reset()
-		return cmd, true
+	isEnterFunc := DefaultEnterKeyPressHandler
+	if s.IsEnter != nil {
+		isEnterFunc = s.IsEnter
 	}
-	if s.state == waitOut {
-		s.state = input
+
+	if isEnterFunc(chars) {
+		// 针对多行命令，从最新一行，往前查找到最近一次的 ps1 之间的都是命令
+		s.state = OutputState
+		s.cmd = s.TryInput()
+		return s.cmd, true
+	}
+	if s.state == OutputState {
+		s.state = InputState
 		s.Ps1sStr = s.GetPs1()
-		s.outputBuf.Reset()
 	}
-	s.inputBuf.Write(chars)
+	s.InputBuf.Write(chars)
 	return "", false
 }
 
-func (s *Parser) GetPs1() string {
-	row := s.screen.GetCursorRow()
+func (s *TerminalParser) TryInput() string {
+	lastLine := s.Screen.GetCursorRow()
+	cmd := strings.TrimPrefix(lastLine.String(), s.Ps1sStr)
+	s.InputBuf.Reset()
+	return cmd
+}
+
+func (s *TerminalParser) GetPs1() string {
+	row := s.Screen.GetCursorRow()
 	rowStr := row.String()
-	return strings.TrimSuffix(rowStr, s.inputBuf.String())
+	return strings.TrimSuffix(rowStr, s.InputBuf.String())
 }
 
 // rest ps1
