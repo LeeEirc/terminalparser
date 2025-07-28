@@ -4,12 +4,14 @@ go 1.23.3
 
 require (
 	github.com/LeeEirc/terminalparser v0.0.0
+	github.com/danielgatis/go-vte v1.0.9
 	github.com/gorilla/websocket v1.5.3
 	github.com/spf13/viper v1.20.1
 	golang.org/x/crypto v0.40.0
 )
 
 require (
+	github.com/danielgatis/go-utf8 v1.0.1 // indirect
 	github.com/fsnotify/fsnotify v1.8.0 // indirect
 	github.com/go-viper/mapstructure/v2 v2.2.1 // indirect
 	github.com/mattn/go-runewidth v0.0.16 // indirect

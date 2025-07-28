@@ -85,7 +85,7 @@ func (s *Screen) parse(data []byte) []byte {
 				}
 				if existIndex := bytes.IndexRune([]byte(string(Parameters)), code); existIndex >= 0 {
 
-					log.Printf("Screen 未解析 ESC `%q` %xParameters字符\n", code, code)
+					log.Printf("Screen 未解析 ESC `%q` %x Parameters字符\n", code, code)
 					continue
 				}
 				if existIndex := bytes.IndexRune([]byte(string(Uppercase)), code); existIndex >= 0 {
@@ -164,6 +164,9 @@ func (s *Screen) parseC0Sequence(code rune) {
 
 func (s *Screen) parseCSISequence(p []byte) []byte {
 	endIndex := bytes.IndexFunc(p, IsAlphabetic)
+	if endIndex == -1 {
+		return p
+	}
 	params := []rune(string(p[:endIndex]))
 	switch rune(p[endIndex]) {
 	case 'Y':
