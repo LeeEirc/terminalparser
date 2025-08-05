@@ -2,7 +2,6 @@ package terminalparser
 
 import (
 	"bytes"
-	"log"
 	"strconv"
 	"unicode/utf8"
 
@@ -85,19 +84,19 @@ func (s *Screen) parse(data []byte) []byte {
 				}
 				if existIndex := bytes.IndexRune([]byte(string(Parameters)), code); existIndex >= 0 {
 
-					log.Printf("Screen 未解析 ESC `%q` %x Parameters字符\n", code, code)
+					Printf("Screen 未解析 ESC `%q` %x Parameters字符\n", code, code)
 					continue
 				}
 				if existIndex := bytes.IndexRune([]byte(string(Uppercase)), code); existIndex >= 0 {
-					log.Printf("Screen 未解析 ESC `%q` %x Uppercase字符\n", code, code)
+					Printf("Screen 未解析 ESC `%q` %x Uppercase字符\n", code, code)
 					continue
 				}
 
 				if existIndex := bytes.IndexRune([]byte(string(Lowercase)), code); existIndex >= 0 {
-					log.Printf("Screen 未解析 ESC `%q` %x Lowercase字符\n", code, code)
+					Printf("Screen 未解析 ESC `%q` %x Lowercase字符\n", code, code)
 					continue
 				}
-				log.Printf("Screen 未解析 ESC `%q` %x\n", code, code)
+				Printf("Screen 未解析 ESC `%q` %x\n", code, code)
 			}
 			continue
 		case Delete:
@@ -157,7 +156,7 @@ func (s *Screen) parseC0Sequence(code rune) {
 			})
 		}
 	default:
-		log.Printf("未处理的字符 %q %v\n", code, code)
+		Printf("未处理的字符 %q %v\n", code, code)
 	}
 
 }
@@ -191,7 +190,7 @@ func (s *Screen) parseCSISequence(p []byte) []byte {
 	if ok {
 		funcName(s, params)
 	} else {
-		log.Printf("screen未处理的CSI %s %q\n", DebugString(string(params)), p[endIndex])
+		Printf("screen未处理的CSI %s %q\n", DebugString(string(params)), p[endIndex])
 	}
 
 	return p[endIndex+1:]
@@ -225,7 +224,7 @@ func (s *Screen) parseIntermediate(code rune, p []byte) []byte {
 		})
 		p = p[terminationIndex+1:]
 	default:
-		log.Printf("Screen 未解析 ESC `%q` %x Intermediate字符\n", code, code)
+		Printf("Screen 未解析 ESC `%q` %x Intermediate字符\n", code, code)
 	}
 	return p
 }
@@ -238,7 +237,7 @@ func (s *Screen) parseOSCSequence(p []byte) []byte {
 	if endIndex := bytes.IndexRune(p, ST); endIndex >= 0 {
 		return p[endIndex+1:]
 	}
-	log.Println("未处理的 parseOSCSequence")
+	Printf("未处理的 parseOSCSequence")
 	return p
 }
 
@@ -264,7 +263,7 @@ func (s *Screen) eraseRight() {
 }
 
 func (s *Screen) eraseLeft() {
-	log.Printf("Screen %s Erase Left cursor(%d，%d) 总Row数量 %d",
+	Printf("Screen %s Erase Left cursor(%d，%d) 总Row数量 %d",
 		UnsupportedMsg, s.Cursor.X, s.Cursor.Y, len(s.Rows))
 }
 
@@ -310,7 +309,7 @@ func (s *Screen) GetCursorRow() *Row {
 	}
 	index := s.Cursor.Y - 1
 	if index >= len(s.Rows) {
-		log.Printf("总行数 %d 比当前行 %d 小，可能存在解析错误 \n", len(s.Rows), s.Cursor.Y)
+		Printf("总行数 %d 比当前行 %d 小，可能存在解析错误 \n", len(s.Rows), s.Cursor.Y)
 		return s.Rows[len(s.Rows)-1]
 	}
 	return s.Rows[s.Cursor.Y-1]
