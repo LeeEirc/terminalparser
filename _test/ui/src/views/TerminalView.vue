@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import { Terminal } from '@xterm/xterm';
-import {FitAddon} from '@xterm/addon-fit'
-import { useWindowSize } from '@vueuse/core';
+import { useWindowSize, useDebounceFn } from '@vueuse/core';
 const { height,width } = useWindowSize();
 import { AttachAddon } from '@xterm/addon-attach';
 import {onMounted, ref, watch, nextTick, onUnmounted} from "vue";
@@ -10,7 +9,6 @@ const SCHEME = document.location.protocol === 'https:' ? 'wss' : 'ws';
 
 const BASE_WS_URL = `${SCHEME}://${document.location.hostname}${PORT}`;
 const terminalRef = ref()
-const fitAddon = new FitAddon();
 const wsRef = ref()
 onMounted(()=>{
   const containerElement = document.getElementById("terminal");
@@ -19,58 +17,36 @@ onMounted(()=>{
   wsRef.value= ws
   const terminal = new Terminal(
     {
-      fontSize: 16,
-      cols: 80,
-      rows: 60,
+      cols:120,
+      rows:80,
+      fontSize: 10,
     }
   );
-
   const attachAddon = new AttachAddon(ws);
   terminal.loadAddon(attachAddon);
-  terminal.loadAddon(fitAddon);
   terminal.open(containerElement!);
-  fitAddon.fit();
   terminalRef.value=terminal;
 })
 
-const sendSize = () => {
+const sendSize = useDebounceFn(() => {
   const windowSize = {high:terminalRef.value.rows, width: terminalRef.value.cols};
   const blob = new Blob([JSON.stringify(windowSize)], {type : 'application/json'});
   console.log(windowSize)
   wsRef.value.send(blob);
-}
+})
 
 
-watch([width, height], ([_newWidth, _newHeight]: [number, number]) => {
-  if (!terminalRef.value || !fitAddon) return;
-
-  nextTick(() => {
-    // fitAddon.fit();
-    sendSize()
-  });
-});
-// fonts.size
-const elem = document.body; // 或 document.querySelector('#your-element-id')
-const fontSize = window.getComputedStyle(elem).fontSize;
-console.log(`字体大小为: ${fontSize}`);
-const fontSizeNumber = parseFloat(fontSize);
-const cols = Math.floor(800 / fontSizeNumber);
-const rows = Math.floor(600 / fontSizeNumber);
 </script>
 
 
 <template>
-<div id="terminal">
+<div id="terminal" class="w-full">
 </div>
-  <div>
-  {{fontSize }} | {{ cols }} | {{rows}}
-
-  </div>
 </template>
 
 <style scoped>
 #terminal {
-  width: 800px;
-  height: 600px;
+  width: 1000px;
+  height: 800px;
 }
 </style>

@@ -23,3 +23,9 @@ func Printf(format string, args ...interface{}) {
 	}
 	log.Printf(format, args...)
 }
+
+func Println(args ...interface{}) {
+	if !terminalDebug {
+		log.Println(args...)
+	}
+}

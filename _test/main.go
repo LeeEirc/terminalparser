@@ -49,9 +49,9 @@ func HandleWsSSH(w http.ResponseWriter, req *http.Request) {
 
 	defer conn.Close()
 	wg := sync.WaitGroup{}
-	sshClient, err := NewSSHClient(&cfg, 80, 60)
-	if err != nil {
-		log.Println(err)
+	sshClient, err2 := NewSSHClient(&cfg, 120, 100)
+	if err2 != nil {
+		log.Println(err2)
 		return
 	}
 	defer sshClient.client.Close()
@@ -61,7 +61,7 @@ func HandleWsSSH(w http.ResponseWriter, req *http.Request) {
 		for {
 			msgType, p, err1 := conn.ReadMessage()
 			if err1 != nil {
-				log.Println("conn.ReadMessage:", err)
+				log.Println("conn.ReadMessage:", err1)
 				return
 			}
 			switch msgType {
@@ -73,8 +73,8 @@ func HandleWsSSH(w http.ResponseWriter, req *http.Request) {
 				if err = json.Unmarshal(p, &wdSize); err != nil {
 					continue
 				}
-				//log.Println("wdSize:", wdSize)
-				//sshClient.Resize(wdSize.Width, wdSize.High)
+				log.Println("wdSize:", wdSize)
+				sshClient.Resize(wdSize.Width, wdSize.High)
 			default:
 
 			}
@@ -91,9 +91,9 @@ func HandleWsSSH(w http.ResponseWriter, req *http.Request) {
 				log.Println("sshClient.Read:", err)
 				return
 			}
-			err2 := conn.WriteMessage(websocket.TextMessage, buf[:n])
-			if err2 != nil {
-				log.Println("conn.WriteMessage:", err)
+			err3 := conn.WriteMessage(websocket.TextMessage, buf[:n])
+			if err3 != nil {
+				log.Println("conn.WriteMessage:", err3)
 				return
 			}
 		}

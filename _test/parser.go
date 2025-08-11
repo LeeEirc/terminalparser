@@ -2,12 +2,15 @@ package main
 
 import (
 	"bytes"
+	"encoding/hex"
 	"fmt"
 	"os"
+	"runtime/debug"
 	"strings"
 	"sync"
 
 	"github.com/LeeEirc/terminalparser"
+	"github.com/danielgatis/go-vte"
 )
 
 var terminalDebug = true
@@ -44,6 +47,11 @@ type TerminalParser struct {
 	cmd     string
 
 	EmitCommands func(cmd, out string)
+
+	isTmux bool
+
+	subVtS *vte.Parser
+	vtStem *VtTmuxScreen
 }
 
 func (s *TerminalParser) SetState(state int) {
@@ -55,14 +63,48 @@ func (s *TerminalParser) resetCommand() {
 
 }
 
+func (s *TerminalParser) CheckSubScreen(b []byte) {
+	if !s.isTmux && IsEditEnterMode(b) {
+		s.isTmux = true
+		s.vtStem = &VtTmuxScreen{
+			rows:            make([]*Row, 0),
+			currentRowIndex: 0,
+			Cursor:          TmuxCursor{1, 1},
+		}
+		s.subVtS = vte.NewParser(s.vtStem)
+	}
+	if s.isTmux && IsEditExitMode(b) {
+		s.isTmux = false
+	}
+}
+
 func (s *TerminalParser) Feed(p []byte) {
 	defer func() {
 		if r := recover(); r != nil {
-			fmt.Println("Recovered from panic:", r)
+			fmt.Println("Recovered from panic:", r, string(debug.Stack()))
 		}
 	}()
 	s.mux.Lock()
 	defer s.mux.Unlock()
+
+	s.CheckSubScreen(p)
+
+	if s.isTmux {
+		for i := 0; i < len(p); i++ {
+			s.subVtS.Advance(p[i])
+		}
+		currentLine := s.vtStem.GetCursorRow()
+		fmt.Println(currentLine)
+		return
+	}
+
+	fmt.Println()
+	fmt.Printf("=======feed start (%d) ========", len(p))
+	fmt.Println()
+	fmt.Println(hex.Dump(p))
+	fmt.Println()
+	fmt.Printf("======== feed end (%d) ========", len(p))
+	fmt.Println()
 	s.Screen.Feed(p)
 	if s.state == OutputState {
 		currentRow := s.Screen.GetCursorRow()
@@ -71,20 +113,20 @@ func (s *TerminalParser) Feed(p []byte) {
 			if s.EmitCommands != nil {
 				s.EmitCommands(s.cmd, outputBuf)
 			}
-			if terminalDebug {
-				// 从这里找上一个匹配的 ps1 row，然后这之间的 rows 就是output
-				fmt.Println("============= match ps1 command================")
-				fmt.Println("ps1: ", s.Ps1sStr)
-				fmt.Println("command input:  ", s.cmd)
-				fmt.Println("command output: ", outputBuf)
-				fmt.Println("===============================================")
-				// 这个时候应该是 输入状态了，命令结束了
-			}
+			//if terminalDebug {
+			//	// 从这里找上一个匹配的 ps1 rows，然后这之间的 rows 就是output
+			//	fmt.Println("============= match ps1 command================")
+			//	fmt.Println("ps1: ", s.Ps1sStr)
+			//	fmt.Println("command input:  ", s.cmd)
+			//	fmt.Println("command output: ", outputBuf)
+			//	fmt.Println("===============================================")
+			//	// 这个时候应该是 输入状态了，命令结束了
+			//}
 			s.cmd = ""
 			return
 		}
 	}
-	s.PrintLatestLines(10)
+	//s.PrintLatestLines(10)
 }
 
 func (s *TerminalParser) OnSize() {
@@ -106,13 +148,13 @@ func (s *TerminalParser) PrintLatestLines(num int) {
 }
 
 func (s *TerminalParser) TryOutput() string {
-	// 从这里找上一个匹配的 ps1 row，然后这之间的 rows 就是output
+	// 从这里找上一个匹配的 ps1 rows，然后这之间的 rows 就是output
 	rows := s.Screen.Rows
 	maxRows := len(rows) - 1
 	outputRows := make([]string, 0, maxRows)
 	for i := maxRows - 1; i >= 0; i-- {
 		row := rows[i]
-		// insert row to outputRows first
+		// insert rows to outputRows first
 		if strings.HasPrefix(row.String(), s.Ps1sStr) {
 			break
 		}
@@ -127,6 +169,11 @@ func (s *TerminalParser) TryOutput() string {
 }
 
 func (s *TerminalParser) WriteInput(chars []byte) (string, bool) {
+	defer func() {
+		if r := recover(); r != nil {
+			fmt.Println("Recovered from panic:", r, debug.Stack())
+		}
+	}()
 	if len(chars) == 0 {
 		return "", false
 	}
