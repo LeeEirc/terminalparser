@@ -3,12 +3,13 @@ package main
 import (
 	"bytes"
 	"fmt"
-	"github.com/LeeEirc/terminalparser"
-	"github.com/danielgatis/go-vte"
 	"io"
 	"os"
 	"strings"
 	"time"
+
+	"github.com/LeeEirc/terminalparser"
+	"github.com/danielgatis/go-vte"
 )
 
 var _ (vte.Performer) = (*performer)(nil)
