@@ -76,7 +76,11 @@ func (r *TmuxRow) MoveRightCurse(i int) {
 func (r *TmuxRow) EaseRightCharsAll() {
 	index := r.GetCurrentX()
 	newLine := make([]rune, 0, len(r.Line))
-	newLine = append(newLine, r.Line[:index]...)
+	line := r.Line
+	if len(r.Line) > index {
+		line = r.Line[:index]
+	}
+	newLine = append(newLine, line...)
 	r.Line = newLine
 }
 

@@ -26,6 +26,7 @@ func Printf(format string, args ...interface{}) {
 
 func Println(args ...interface{}) {
 	if !terminalDebug {
-		log.Println(args...)
+		return
 	}
+	log.Println(args...)
 }
