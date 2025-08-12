@@ -90,13 +90,15 @@ func NewSSHClient(cfg *Config, w, h int) (*SSHClient, error) {
 		return nil, err
 	}
 	screen := terminalparser.NewScreen(h, w)
+	usqlParser := terminalparser.NewUSqlParser()
+	winParser := terminalparser.NewWindowsParser()
 
 	return &SSHClient{
 		client:  client,
 		session: session,
 		stdin:   stdin,
 		stdout:  stdout,
-		Parser:  &TerminalParser{Screen: screen},
+		Parser:  &TerminalParser{Screen: screen, VtParser: usqlParser, vtWinParser: winParser},
 	}, nil
 
 }
