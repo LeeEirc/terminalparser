@@ -1,7 +1,7 @@
 package terminalparser
 
 import (
-	"log"
+	"fmt"
 	"os"
 )
 
@@ -18,15 +18,15 @@ func Printf(format string, args ...interface{}) {
 		return
 	}
 	if len(args) == 0 {
-		log.Println(format)
+		fmt.Println(format)
 		return
 	}
-	log.Printf(format, args...)
+	fmt.Printf(format, args...)
 }
 
 func Println(args ...interface{}) {
 	if !terminalDebug {
 		return
 	}
-	log.Println(args...)
+	fmt.Println(args...)
 }

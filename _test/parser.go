@@ -52,6 +52,10 @@ type TerminalParser struct {
 
 	subVtS *vte.Parser
 	vtStem *VtTmuxScreen
+
+	VtParser *terminalparser.USqlParser
+
+	vtWinParser *terminalparser.WindowsParser
 }
 
 func (s *TerminalParser) SetState(state int) {
@@ -78,6 +82,30 @@ func (s *TerminalParser) CheckSubScreen(b []byte) {
 	}
 }
 
+func (s *TerminalParser) VtFeed(p []byte) {
+	s.VtParser.Feed(p)
+	if s.state == OutputState {
+		currentRow := s.VtParser.TmuxScreen.GetCursorRow()
+		if currentRow.String() == s.Ps1sStr && s.cmd != "" {
+			outputBuf := s.TryOutput()
+			if s.EmitCommands != nil {
+				s.EmitCommands(s.cmd, outputBuf)
+			}
+			if terminalDebug {
+				// 从这里找上一个匹配的 ps1 rows，然后这之间的 rows 就是output
+				fmt.Println("============= match ps1 command================")
+				fmt.Println("ps1: ", s.Ps1sStr)
+				fmt.Println("command input:  ", s.cmd)
+				fmt.Println("command output: ", outputBuf)
+				fmt.Println("===============================================")
+				// 这个时候应该是 输入状态了，命令结束了
+			}
+			s.cmd = ""
+			return
+		}
+	}
+}
+
 func (s *TerminalParser) Feed(p []byte) {
 	defer func() {
 		if r := recover(); r != nil {
@@ -86,7 +114,10 @@ func (s *TerminalParser) Feed(p []byte) {
 	}()
 	s.mux.Lock()
 	defer s.mux.Unlock()
-
+	if s.VtParser != nil {
+		s.VtFeed(p)
+		return
+	}
 	s.CheckSubScreen(p)
 
 	if s.isTmux {
@@ -191,6 +222,12 @@ func (s *TerminalParser) WriteInput(chars []byte) (string, bool) {
 
 	if isEnterFunc(chars) {
 		// 针对多行命令，从最新一行，往前查找到最近一次的 ps1 之间的都是命令
+		if s.VtParser != nil {
+			row := s.VtParser.TmuxScreen.GetCursorRow()
+			fmt.Println("=========== enter command================")
+			fmt.Println(row)
+			fmt.Println("=========== enter end================")
+		}
 		s.state = OutputState
 		s.cmd = s.TryInput()
 		return s.cmd, true
