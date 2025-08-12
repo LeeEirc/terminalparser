@@ -51,6 +51,7 @@ type TerminalParser struct {
 	isTmux bool
 
 	subVtS *vte.Parser
+	vtStem *VtTmuxScreen
 }
 
 func (s *TerminalParser) SetState(state int) {
@@ -65,11 +66,12 @@ func (s *TerminalParser) resetCommand() {
 func (s *TerminalParser) CheckSubScreen(b []byte) {
 	if !s.isTmux && IsEditEnterMode(b) {
 		s.isTmux = true
-		s.subVtS = vte.NewParser(&VtTmuxScreen{
+		s.vtStem = &VtTmuxScreen{
 			rows:            make([]*Row, 0),
 			currentRowIndex: 0,
 			Cursor:          TmuxCursor{1, 1},
-		})
+		}
+		s.subVtS = vte.NewParser(s.vtStem)
 	}
 	if s.isTmux && IsEditExitMode(b) {
 		s.isTmux = false
@@ -91,6 +93,8 @@ func (s *TerminalParser) Feed(p []byte) {
 		for i := 0; i < len(p); i++ {
 			s.subVtS.Advance(p[i])
 		}
+		currentLine := s.vtStem.GetCursorRow()
+		fmt.Println(currentLine)
 		return
 	}
 

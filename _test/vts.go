@@ -58,17 +58,35 @@ type Row struct {
 	CursorX int // 当前行光标的位置
 }
 
+func (r *Row) InsertChars(i int) {
+	spaceLines := make([]rune, i)
+	for j := range spaceLines {
+		spaceLines[j] = ' '
+	}
+
+	index := r.GetCurrentX()
+	newLine := make([]rune, 0, len(r.Line)+i)
+	newLine = append(newLine, r.Line[:index]...)
+	newLine = append(newLine, spaceLines...)
+	newLine = append(newLine, r.Line[index:]...)
+	r.Line = newLine
+}
+
 func (r *Row) String() string {
 	return strings.TrimSpace(string(r.Line))
 }
 
 func (r *Row) Add(c rune) {
-	if len(r.Line) > r.CursorX {
-		r.Line[r.CursorX] = c
+	index := r.GetCurrentX()
+	if len(r.Line) > index {
+		if r.Line == nil {
+			r.Line = make([]rune, index+1)
+		}
+		r.Line[index] = c
 	} else {
 		r.Line = append(r.Line, c)
 	}
-	r.CursorX++
+	r.CursorX += 1
 }
 
 func (r *Row) MoveLeftCurse(i int) {
@@ -80,26 +98,31 @@ func (r *Row) MoveRightCurse(i int) {
 }
 
 func (r *Row) EaseRightCharsAll() {
-	index := r.CursorX
-	if index < 0 {
-		index = 0
-	}
-	r.Line = r.Line[:index]
+	index := r.GetCurrentX()
+	newLine := make([]rune, 0, len(r.Line))
+	newLine = append(newLine, r.Line[:index]...)
+	r.Line = newLine
 }
 
 func (r *Row) DeleteChars(i int) {
+	index := r.GetCurrentX()
+	newLine := make([]rune, 0, len(r.Line))
+	newLine = append(newLine, r.Line[:index+1]...)
+	rest := r.Line[index+1:]
+
+	if len(rest) >= i {
+		newLine = append(newLine, rest[i:]...)
+	}
+	r.Line = newLine
+}
+
+func (r *Row) GetCurrentX() int {
 	index := r.CursorX - 1
 	if index < 0 {
 		index = 0
+		r.CursorX = 1
 	}
-	newLine := make([]rune, 0, len(r.Line))
-	newLine = append(newLine, r.Line[:index+1]...)
-	rest := r.Line[index:]
-
-	if len(rest) > i {
-		newLine = append(newLine, rest[i+1:]...)
-	}
-	r.Line = newLine
+	return index
 }
 
 type TmuxCursor struct {
@@ -227,8 +250,12 @@ func (p *VtTmuxScreen) CsiDispatch(params [][]uint16, intermediates []byte, igno
 
 		// fix tmux last line
 		lastY := p.maxRows - 1
-		if y == lastY {
+		if y == lastY && x == 1 {
 			// tmux 最后一行，应该清空最后一行的数据避免显示错误
+			currentRow.CursorX = 1
+			currentRow.Line = nil
+		}
+		if y == lastY && x > 1 {
 			currentRow.CursorX = x
 		}
 
@@ -245,23 +272,10 @@ func (p *VtTmuxScreen) CsiDispatch(params [][]uint16, intermediates []byte, igno
 			currentRow.DeleteChars(charsNum)
 		default:
 		}
-		fmt.Println(currentRow)
+		//fmt.Println(currentRow)
 		//[CsiDispatch] params=[[8]], intermediates=[], ignore=false, r=D
 		//[CsiDispatch] params=[[5]], intermediates=[], ignore=false, r=P
-	case 'P':
-		/*
-			CSI Ps P  Delete Ps Character(s) (default = 1) (DCH).
-		*/
-		currentRow := p.GetCursorRow()
-		switch len(params) {
-		case 0:
-			currentRow.DeleteChars(1)
-		case 1:
-			charsNum := int(params[0][0])
-			currentRow.DeleteChars(charsNum)
-		default:
 
-		}
 	case 'C':
 		currentRow := p.GetCursorRow()
 		switch len(params) {
@@ -284,7 +298,41 @@ func (p *VtTmuxScreen) CsiDispatch(params [][]uint16, intermediates []byte, igno
 		case 1:
 			charsNum := int(params[0][0])
 			currentRow.CursorX -= charsNum
+		default:
+		}
+	case 'G':
+		currentRow := p.GetCursorRow()
+		switch len(params) {
+		case 0:
+			currentRow.CursorX = 1
+		case 1:
+			charsNum := int(params[0][0])
+			currentRow.CursorX = charsNum
+		default:
+		}
+	case 'P':
+		/*
+			CSI Ps P  Delete Ps Character(s) (default = 1) (DCH).
+		*/
+		currentRow := p.GetCursorRow()
+		switch len(params) {
+		case 0:
+			currentRow.DeleteChars(1)
+		case 1:
+			charsNum := int(params[0][0])
+			currentRow.DeleteChars(charsNum)
+		default:
 
+		}
+	case '@':
+		currentRow := p.GetCursorRow()
+		switch len(params) {
+		case 0:
+			currentRow.DeleteChars(1)
+		case 1:
+			charsNum := int(params[0][0])
+			currentRow.DeleteChars(charsNum)
+		default:
 		}
 
 	}
