@@ -8,12 +8,12 @@ import (
 	"github.com/mattn/go-runewidth"
 )
 
-func NewScreen(r, c int) Screen {
+func NewScreen(r, c int) *Screen {
 	rows := make([]*Row, r)
 	for i := range rows {
 		rows[i] = &Row{dataRune: make([]rune, 0, c), MaxColNum: c}
 	}
-	return Screen{
+	return &Screen{
 		Rows:    rows,
 		Cursor:  &Cursor{X: 1, Y: 1},
 		ColLens: c,
