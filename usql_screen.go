@@ -84,6 +84,12 @@ func (r *VTRow) EaseRightCharsAll() {
 	r.Line = newLine
 }
 
+func (r *VTRow) EaseAll() {
+	newLine := make([]rune, 0, len(r.Line))
+	r.CursorX = 0
+	r.Line = newLine
+}
+
 func (r *VTRow) DeleteChars(i int) {
 	index := r.GetCurrentX()
 	newLine := make([]rune, 0, len(r.Line))
@@ -96,6 +102,16 @@ func (r *VTRow) DeleteChars(i int) {
 		}
 	} else {
 		newLine = append(newLine, line...)
+	}
+	r.Line = newLine
+}
+
+func (r *VTRow) DeleteAllLeft() {
+	index := r.GetCurrentX()
+	newLine := make([]rune, 0, len(r.Line))
+	line := r.Line
+	if len(line) > index {
+		newLine = append(newLine, line[:index]...)
 	}
 	r.Line = newLine
 }
@@ -234,8 +250,9 @@ func (p *USqlScreen) CsiDispatch(params [][]uint16, intermediates []byte, ignore
 			switch charsNum {
 			case 0:
 			case 1:
+				currentRow.DeleteChars(charsNum)
 			case 2:
-				currentRow.EaseRightCharsAll()
+				currentRow.EaseAll()
 			default:
 				currentRow.DeleteChars(charsNum)
 			}
