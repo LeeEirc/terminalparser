@@ -159,6 +159,9 @@ func (r *RingRowBuffer) Values() []*Row {
 
 func (r *RingRowBuffer) Last() *Row {
 	prev := r.current.Prev()
+	if prev.Value == nil {
+		prev.Value = &Row{dataRune: make([]rune, 0, 1024)}
+	}
 	return prev.Value.(*Row)
 }
 
