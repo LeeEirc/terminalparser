@@ -38,7 +38,7 @@ func init() {
 type TerminalParser struct {
 	InputBuf bytes.Buffer
 	Ps1sStr  string
-	Screen   terminalparser.Screen
+	Screen   *terminalparser.Screen
 	state    int
 	once     sync.Once
 	mux      sync.Mutex
@@ -168,19 +168,20 @@ func (s *TerminalParser) PrintLatestLines(num int) {
 	if !terminalDebug {
 		return
 	}
-	maxRow := len(s.Screen.Rows)
+	maxRow := s.Screen.Rows.Len()
 	start := maxRow - num
 	if start < 0 {
 		start = 0
 	}
-	for i := start; i < maxRow; i++ {
-		fmt.Println(s.Screen.Rows[i].String())
+	vals := s.Screen.Rows.Values()
+	for i := range vals {
+		fmt.Println(vals[i].String())
 	}
 }
 
 func (s *TerminalParser) TryOutput() string {
 	// 从这里找上一个匹配的 ps1 rows，然后这之间的 rows 就是output
-	rows := s.Screen.Rows
+	rows := s.Screen.Rows.Values()
 	maxRows := len(rows) - 1
 	outputRows := make([]string, 0, maxRows)
 	for i := maxRows - 1; i >= 0; i-- {

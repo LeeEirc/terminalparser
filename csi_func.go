@@ -294,22 +294,8 @@ var CSIFuncMap = map[rune]screenCsiFunc{
 					/*
 						针对fish的环境特殊处理
 					*/
-					if s.Cursor.Y >= 1 && len(s.Rows) > 0 {
-						index := s.Cursor.Y - 1
-						if index >= len(s.Rows) {
-							index = len(s.Rows) - 1
-						}
-						s.Rows[index].stopRecord()
-					}
 
 				case 90:
-					if s.Cursor.Y >= 1 && len(s.Rows) > 0 {
-						index := s.Cursor.Y - 1
-						if index >= len(s.Rows) {
-							index = len(s.Rows) - 1
-						}
-						s.Rows[index].startRecord()
-					}
 				default:
 					Printf("Screen不支持解析m %s\n", string(params))
 				}
