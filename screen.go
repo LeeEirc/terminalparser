@@ -102,8 +102,8 @@ func (s *Screen) parse(data []byte) []byte {
 			if existIndex := bytes.IndexRune([]byte(string(C0Control)), code); existIndex >= 0 {
 				s.parseC0Sequence(code)
 			} else {
-				if len(s.Rows) == 0 && s.Cursor.Y == 0 {
-					s.Rows = append(s.Rows, &Row{
+				if s.Rows.Len() == 0 && s.Cursor.Y == 0 {
+					s.Rows.Append(&Row{
 						dataRune: make([]rune, 0, 1024),
 					})
 					s.Cursor.Y++
@@ -118,9 +118,10 @@ func (s *Screen) parse(data []byte) []byte {
 
 func (s *Screen) Parse(data []byte) []string {
 	s.parse(data)
-	ret := make([]string, 0, len(s.Rows))
-	for _, row := range s.Rows {
-		ret = append(ret, row.String())
+	vals := s.Rows.Values()
+	ret := make([]string, len(vals))
+	for i, r := range vals {
+		ret[i] = r.String()
 	}
 	return ret
 }
@@ -137,21 +138,11 @@ func (s *Screen) parseC0Sequence(code rune) {
 			\r
 		*/
 		s.Cursor.X = 0
-		if s.Cursor.Y > len(s.Rows) {
-			s.Rows = append(s.Rows, &Row{
-				dataRune: make([]rune, 0, 1024),
-			})
-		}
 	case 0x0a:
 		/*
 			\n
 		*/
 		s.Cursor.Y++
-		if s.Cursor.Y > len(s.Rows) {
-			s.Rows = append(s.Rows, &Row{
-				dataRune: make([]rune, 0, 1024),
-			})
-		}
 	default:
 		Printf("未处理的字符 %q %v\n", code, code)
 	}
@@ -261,29 +252,25 @@ func (s *Screen) eraseRight() {
 
 func (s *Screen) eraseLeft() {
 	Printf("Screen %s Erase Left cursor(%d，%d) 总Row数量 %d",
-		UnsupportedMsg, s.Cursor.X, s.Cursor.Y, len(s.Rows))
+		UnsupportedMsg, s.Cursor.X, s.Cursor.Y, s.Rows.Len())
 }
 
 func (s *Screen) eraseAbove() {
-	s.Rows = s.Rows[s.Cursor.Y-1:]
+	s.Rows.EraseAbove(s.Cursor.Y)
 }
 
 func (s *Screen) eraseBelow() {
-	s.Rows = s.Rows[:s.Cursor.Y]
+	s.Rows.EraseBelow(s.Cursor.Y)
 }
 
 func (s *Screen) eraseAll() {
-	s.Rows = s.Rows[:0]
+	s.Rows.EraseAll()
 	//htop?
 	s.Cursor.X = 0
 	s.Cursor.Y = 0
 }
 
 func (s *Screen) eraseFromCursor() {
-	if s.Cursor.Y > len(s.Rows) {
-		s.Cursor.Y = len(s.Rows)
-	}
-	s.Rows = s.Rows[:s.Cursor.Y]
 	currentRow := s.GetCursorRow()
 	currentRow.changeCursorToX(s.Cursor.X)
 	currentRow.eraseRight()

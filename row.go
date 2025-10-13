@@ -128,26 +128,26 @@ func (r *RingRowBuffer) Len() int {
 	return r.current.Len()
 }
 
-func (rb *RingRowBuffer) Append(v *Row) {
-	rb.current.Value = v
-	rb.current = rb.current.Next()
-	if rb.current == rb.start {
-		rb.full = true
+func (r *RingRowBuffer) Append(v *Row) {
+	r.current.Value = v
+	r.current = r.current.Next()
+	if r.current == r.start {
+		r.full = true
 	}
 }
 
-func (rb *RingRowBuffer) Values() []*Row {
+func (r *RingRowBuffer) Values() []*Row {
 	var vals []*Row
 
-	if rb.full {
-		rb.current.Do(func(v any) {
+	if r.full {
+		r.current.Do(func(v any) {
 			if v != nil {
 				vals = append(vals, v.(*Row))
 			}
 		})
 	} else {
-		p := rb.start
-		for p != rb.current {
+		p := r.start
+		for p != r.current {
 			if p.Value != nil {
 				vals = append(vals, p.Value.(*Row))
 			}
@@ -157,7 +157,65 @@ func (rb *RingRowBuffer) Values() []*Row {
 	return vals
 }
 
-func (rb *RingRowBuffer) Last() *Row {
-	prev := rb.current.Prev()
+func (r *RingRowBuffer) Last() *Row {
+	prev := r.current.Prev()
 	return prev.Value.(*Row)
+}
+
+func (r *RingRowBuffer) Current() *Row {
+	return r.Last()
+}
+
+func (r *RingRowBuffer) EraseAll() {
+	// 将所有 Value 清空
+	p := r.start
+	for i := 0; i < r.size; i++ {
+		p.Value = nil
+		p = p.Next()
+	}
+	// 重置指针与状态
+	r.current = r.start
+	r.full = false
+}
+
+func (r *RingRowBuffer) EraseAbove(idx int) {
+	vals := r.Values()
+	n := len(vals)
+	if n == 0 {
+		return
+	}
+	if idx <= 0 {
+		// 不删
+		return
+	}
+	if idx >= n {
+		r.EraseAll()
+		return
+	}
+	keep := vals[idx:]
+	r.rebuild(keep)
+}
+
+func (rb *RingRowBuffer) EraseBelow(idx int) {
+	vals := rb.Values()
+	n := len(vals)
+	if n == 0 {
+		return
+	}
+	if idx <= 0 {
+		// 不删
+		return
+	}
+	if idx >= n {
+		return
+	}
+	keep := vals[:idx]
+	rb.rebuild(keep)
+}
+
+func (rb *RingRowBuffer) rebuild(ordered []*Row) {
+	rb.EraseAll()
+	for _, v := range ordered {
+		rb.Append(v)
+	}
 }
