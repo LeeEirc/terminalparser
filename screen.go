@@ -9,10 +9,7 @@ import (
 )
 
 func NewScreen(r, c int) *Screen {
-	rows := make([]*Row, r)
-	for i := range rows {
-		rows[i] = &Row{dataRune: make([]rune, 0, c), MaxColNum: c}
-	}
+	rows := NewRingRowBuffer(500)
 	return &Screen{
 		Rows:    rows,
 		Cursor:  &Cursor{X: 1, Y: 1},
@@ -22,7 +19,7 @@ func NewScreen(r, c int) *Screen {
 }
 
 type Screen struct {
-	Rows []*Row
+	Rows *RingRowBuffer
 
 	Cursor *Cursor
 
@@ -48,7 +45,7 @@ func (s *Screen) TryParse() {
 }
 
 func (s *Screen) GetRows() []*Row {
-	return s.Rows
+	return s.Rows.Values()
 }
 
 func (s *Screen) parse(data []byte) []byte {
@@ -302,17 +299,12 @@ func (s *Screen) GetCursorRow() *Row {
 	if s.Cursor.Y == 0 {
 		s.Cursor.Y++
 	}
-	if len(s.Rows) == 0 {
-		s.Rows = append(s.Rows, &Row{
+	if s.Rows.Len() == 0 {
+		s.Rows.Append(&Row{
 			dataRune: make([]rune, 0, 1024),
 		})
 	}
-	index := s.Cursor.Y - 1
-	if index >= len(s.Rows) {
-		Printf("总行数 %d 比当前行 %d 小，可能存在解析错误 \n", len(s.Rows), s.Cursor.Y)
-		return s.Rows[len(s.Rows)-1]
-	}
-	return s.Rows[s.Cursor.Y-1]
+	return s.Rows.Last()
 }
 
 const UnsupportedMsg = "Unsupported"

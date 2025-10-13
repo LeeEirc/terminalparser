@@ -1,6 +1,7 @@
 package terminalparser
 
 import (
+	"container/ring"
 	"strings"
 
 	"github.com/mattn/go-runewidth"
@@ -104,4 +105,59 @@ func (r *Row) addTipRune(code rune) {
 		r.tipRune = append(r.tipRune, code)
 	}
 
+}
+
+type RingRowBuffer struct {
+	start   *ring.Ring
+	current *ring.Ring
+	full    bool
+	size    int
+}
+
+func NewRingRowBuffer(size int) *RingRowBuffer {
+	r := ring.New(size)
+	return &RingRowBuffer{
+		start:   r,
+		current: r,
+		full:    false,
+		size:    size,
+	}
+}
+
+func (r *RingRowBuffer) Len() int {
+	return r.current.Len()
+}
+
+func (rb *RingRowBuffer) Append(v *Row) {
+	rb.current.Value = v
+	rb.current = rb.current.Next()
+	if rb.current == rb.start {
+		rb.full = true
+	}
+}
+
+func (rb *RingRowBuffer) Values() []*Row {
+	var vals []*Row
+
+	if rb.full {
+		rb.current.Do(func(v any) {
+			if v != nil {
+				vals = append(vals, v.(*Row))
+			}
+		})
+	} else {
+		p := rb.start
+		for p != rb.current {
+			if p.Value != nil {
+				vals = append(vals, p.Value.(*Row))
+			}
+			p = p.Next()
+		}
+	}
+	return vals
+}
+
+func (rb *RingRowBuffer) Last() *Row {
+	prev := rb.current.Prev()
+	return prev.Value.(*Row)
 }
