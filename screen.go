@@ -143,6 +143,9 @@ func (s *Screen) parseC0Sequence(code rune) {
 			\n
 		*/
 		s.Cursor.Y++
+		if s.Rows.full {
+			s.Cursor.Y = s.Rows.Len()
+		}
 	default:
 		Printf("未处理的字符 %q %v\n", code, code)
 	}
@@ -257,10 +260,12 @@ func (s *Screen) eraseLeft() {
 
 func (s *Screen) eraseAbove() {
 	s.Rows.EraseAbove(s.Cursor.Y)
+	Println("eraseAbove ")
 }
 
 func (s *Screen) eraseBelow() {
 	s.Rows.EraseBelow(s.Cursor.Y)
+	Println("eraseBelow ")
 }
 
 func (s *Screen) eraseAll() {
@@ -268,6 +273,7 @@ func (s *Screen) eraseAll() {
 	//htop?
 	s.Cursor.X = 0
 	s.Cursor.Y = 0
+	Println("EraseAll ")
 }
 
 func (s *Screen) eraseFromCursor() {
