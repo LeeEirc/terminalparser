@@ -38,10 +38,28 @@ func (s *Screen) Feed(p []byte) {
 }
 
 func (s *Screen) TryParse() {
-	remainBytes := s.buffer.Bytes()
-	remain := s.parse(remainBytes)
-	s.buffer.Reset()
-	s.buffer.Write(remain)
+	// Parse what we have and avoid retaining overly large buffers.
+	buf := s.buffer.Bytes()
+	remain := s.parse(buf)
+	// If nothing was consumed, keep buffering to get a full sequence.
+	if len(remain) == len(buf) {
+		return
+	}
+	// Shrink strategy: if the underlying capacity is much larger than the remainder,
+	// rebuild the buffer to release memory.
+	if cap(buf) > 4*len(remain)+4096 {
+		var nb bytes.Buffer
+		if len(remain) > 0 {
+			nb.Grow(len(remain))
+			nb.Write(remain)
+		}
+		s.buffer = nb
+	} else {
+		s.buffer.Reset()
+		if len(remain) > 0 {
+			s.buffer.Write(remain)
+		}
+	}
 }
 
 func (s *Screen) GetRows() []*Row {
@@ -74,22 +92,21 @@ func (s *Screen) parse(data []byte) []byte {
 				rest = s.parseOSCSequence(rest)
 				continue
 			default:
-				if existIndex := bytes.IndexRune([]byte(string(Intermediate)), code); existIndex >= 0 {
+				if isIntermediate(code) {
 					// ESC
 					rest = s.parseIntermediate(code, rest)
 					continue
 				}
-				if existIndex := bytes.IndexRune([]byte(string(Parameters)), code); existIndex >= 0 {
-
+				if isParameters(code) {
 					Printf("Screen 未解析 ESC `%q` %x Parameters字符\n", code, code)
 					continue
 				}
-				if existIndex := bytes.IndexRune([]byte(string(Uppercase)), code); existIndex >= 0 {
+				if isUppercase(code) {
 					Printf("Screen 未解析 ESC `%q` %x Uppercase字符\n", code, code)
 					continue
 				}
 
-				if existIndex := bytes.IndexRune([]byte(string(Lowercase)), code); existIndex >= 0 {
+				if isLowercase(code) {
 					Printf("Screen 未解析 ESC `%q` %x Lowercase字符\n", code, code)
 					continue
 				}
@@ -99,12 +116,12 @@ func (s *Screen) parse(data []byte) []byte {
 		case Delete:
 			continue
 		default:
-			if existIndex := bytes.IndexRune([]byte(string(C0Control)), code); existIndex >= 0 {
+			if isC0Control(code) {
 				s.parseC0Sequence(code)
 			} else {
 				if s.Rows.Len() == 0 && s.Cursor.Y == 0 {
 					s.Rows.Append(&Row{
-						dataRune: make([]rune, 0, 1024),
+						dataRune: make([]rune, 0, 100),
 					})
 					s.Cursor.Y++
 				}
@@ -190,12 +207,7 @@ func (s *Screen) parseCSISequence(p []byte) []byte {
 func (s *Screen) parseIntermediate(code rune, p []byte) []byte {
 	switch code {
 	case '(':
-		terminationIndex := bytes.IndexFunc(p, func(r rune) bool {
-			if insideIndex := bytes.IndexRune([]byte(string(Alphabetic)), r); insideIndex < 0 {
-				return false
-			}
-			return true
-		})
+		terminationIndex := bytes.IndexFunc(p, func(r rune) bool { return IsAlphabetic(r) })
 		params := p[:terminationIndex+1]
 		switch string(params) {
 		case "B":
@@ -207,12 +219,7 @@ func (s *Screen) parseIntermediate(code rune, p []byte) []byte {
 		p = p[terminationIndex+1:]
 		return p
 	case ')':
-		terminationIndex := bytes.IndexFunc(p, func(r rune) bool {
-			if insideIndex := bytes.IndexRune([]byte(string(Alphabetic)), r); insideIndex < 0 {
-				return false
-			}
-			return true
-		})
+		terminationIndex := bytes.IndexFunc(p, func(r rune) bool { return IsAlphabetic(r) })
 		p = p[terminationIndex+1:]
 	default:
 		Printf("Screen 未解析 ESC `%q` %x Intermediate字符\n", code, code)
@@ -236,7 +243,7 @@ func (s *Screen) appendCharacter(code rune) {
 	currentRow := s.GetCursorRow()
 	currentRow.changeCursorToX(s.Cursor.X)
 	currentRow.appendCharacter(code)
-	width := runewidth.StringWidth(string(code))
+	width := runewidth.RuneWidth(code)
 	s.Cursor.X += width
 }
 
@@ -294,7 +301,7 @@ func (s *Screen) GetCursorRow() *Row {
 	}
 	if s.Rows.Len() == 0 {
 		s.Rows.Append(&Row{
-			dataRune: make([]rune, 0, 1024),
+			dataRune: make([]rune, 0, 100),
 		})
 	}
 	return s.Rows.Last()
