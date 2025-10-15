@@ -22,6 +22,7 @@ func Printf(format string, args ...interface{}) {
 		return
 	}
 	fmt.Printf(format, args...)
+	fmt.Println()
 }
 
 func Println(args ...interface{}) {
