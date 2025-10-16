@@ -155,11 +155,12 @@ func (t *TerminalScreen) Print(r rune) {
 }
 
 func (t *TerminalScreen) Execute(b byte) {
+	Printf("[Execute] %02x", b)
 	switch b {
 	case '\r':
-		t.Cursor.X = 0
+		t.Cursor.X = 1
 		currentRow := t.GetCursorRow()
-		currentRow.CursorX = 0
+		currentRow.CursorX = 1
 	case '\n':
 		t.Rows.Append(&TRow{
 			CursorX: 1,
@@ -172,20 +173,20 @@ func (t *TerminalScreen) Execute(b byte) {
 		currentRow := t.GetCursorRow()
 		currentRow.CursorX--
 	default:
-		Println("Unexpect Execute: %c", b)
+		Printf("Unexpect Execute: %02x", b)
 	}
 }
 
 func (t *TerminalScreen) Put(b byte) {
-	Printf("Put: %c", b)
+	Printf("[Put] %02x", b)
 }
 
 func (t *TerminalScreen) Unhook() {
-
+	Printf("[Unhook]")
 }
 
 func (t *TerminalScreen) Hook(params [][]uint16, intermediates []byte, ignore bool, r rune) {
-
+	Printf("[Hook] params=%v, intermediates=%v, ignore=%v, r=%c", params, intermediates, ignore, r)
 }
 
 func (t *TerminalScreen) OscDispatch(params [][]byte, bellTerminated bool) {
@@ -193,7 +194,7 @@ func (t *TerminalScreen) OscDispatch(params [][]byte, bellTerminated bool) {
 }
 
 func (t *TerminalScreen) CsiDispatch(params [][]uint16, intermediates []byte, ignore bool, r rune) {
-	Printf("[CsiDispatch] params=%v, intermediates=%v, ignore=%v, r=%c\n", params, intermediates, ignore, r)
+	Printf("[CsiDispatch] params=%v, intermediates=%v, ignore=%v, r=%c", params, intermediates, ignore, r)
 	switch r {
 	case 'm', 'h':
 	case 'A':
