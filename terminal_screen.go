@@ -29,6 +29,21 @@ func (r *TRow) String() string {
 	return strings.TrimSpace(string(r.Line))
 }
 
+func (r *TRow) InsertSpaces(spaces int) {
+	spacesRunes := make([]rune, spaces)
+	for i := 0; i < spaces; i++ {
+		spacesRunes[i] = ' '
+	}
+	index := r.GetCurrentX()
+	newLine := make([]rune, len(r.Line))
+	copy(newLine, r.Line[:index])
+	copy(newLine[index:], spacesRunes)
+	lastIndex := index + spaces
+	if len(newLine) >= lastIndex {
+		copy(newLine[index+spaces:], r.Line[index:])
+	}
+}
+
 func (r *TRow) Add(c rune) {
 	index := r.GetCurrentX()
 	if len(r.Line) > index {
