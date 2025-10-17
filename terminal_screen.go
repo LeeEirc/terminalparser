@@ -358,7 +358,8 @@ func (t *TerminalScreen) CsiDispatch(params [][]uint16, intermediates []byte, ig
 		default:
 		}
 	default:
-		Printf("Unhandle [CsiDispatch] params=%v, intermediates=%v, ignore=%v, r=%c", params, intermediates, ignore, r)
+		Printf("Unhandle [CsiDispatch] params=%v, intermediates=%v, ignore=%v, r=%c",
+			params, intermediates, ignore, r)
 	}
 }
 
