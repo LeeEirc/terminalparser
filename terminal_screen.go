@@ -23,6 +23,8 @@ func NewTerminalParser() *TerminalParser {
 type TRow struct {
 	Line    []rune
 	CursorX int // 当前行光标的位置
+
+	currentRuneIndex int
 }
 
 func (r *TRow) String() string {
@@ -38,14 +40,17 @@ func (r *TRow) InsertSpaces(spaces int) {
 	newLine := make([]rune, len(r.Line))
 	copy(newLine, r.Line[:index])
 	copy(newLine[index:], spacesRunes)
-	lastIndex := index + spaces
-	if len(newLine) >= lastIndex {
+	maxIndex := index + spaces
+	if maxIndex <= len(r.Line) {
 		copy(newLine[index+spaces:], r.Line[index:])
 	}
+	r.Line = newLine
 }
 
 func (r *TRow) Add(c rune) {
 	index := r.GetCurrentX()
+	cWidth := runewidth.RuneWidth(c)
+	Printf("CursorX=%d, index=%d", r.CursorX, index)
 	if len(r.Line) > index {
 		if r.Line == nil {
 			r.Line = make([]rune, index+1)
@@ -54,7 +59,8 @@ func (r *TRow) Add(c rune) {
 	} else {
 		r.Line = append(r.Line, c)
 	}
-	r.CursorX += 1
+	r.CursorX += cWidth
+	r.currentRuneIndex++
 }
 
 func (r *TRow) LineX() int {
@@ -77,9 +83,9 @@ func (r *TRow) EaseRightCharsAll() {
 }
 
 func (r *TRow) EaseAll() {
-	newLine := make([]rune, 0, len(r.Line))
-	r.CursorX = 0
-	r.Line = newLine
+	r.CursorX = 1
+	r.currentRuneIndex = 0
+	r.Line = nil
 }
 
 func (r *TRow) DeleteChars(i int) {
@@ -113,8 +119,20 @@ func (r *TRow) GetCurrentX() int {
 	if index < 0 {
 		index = 0
 		r.CursorX = 1
+		r.currentRuneIndex = 0
+		return r.currentRuneIndex
 	}
-	return index
+	posX := 1
+	r.currentRuneIndex = 0
+	for r.currentRuneIndex < len(r.Line) {
+		if posX == r.CursorX {
+			break
+		}
+		cWidth := runewidth.RuneWidth(r.Line[r.currentRuneIndex])
+		posX += cWidth
+		r.currentRuneIndex++
+	}
+	return r.currentRuneIndex
 }
 
 func (r *TRow) ChangeCursorToX(x int) {
@@ -165,7 +183,7 @@ func (t *TerminalScreen) increaseCursorY() {
 func (t *TerminalScreen) Print(r rune) {
 	currentRow := t.GetCursorRow()
 	currentRow.Add(r)
-	t.Cursor.X += 1
+	t.Cursor.X += runewidth.RuneWidth(r)
 	Println("Print Current row: ", currentRow)
 }
 
@@ -176,6 +194,7 @@ func (t *TerminalScreen) Execute(b byte) {
 		t.Cursor.X = 1
 		currentRow := t.GetCursorRow()
 		currentRow.CursorX = 1
+		currentRow.currentRuneIndex = 0
 	case '\n':
 		t.Rows.Append(&TRow{
 			CursorX: 1,
@@ -187,6 +206,9 @@ func (t *TerminalScreen) Execute(b byte) {
 		t.Cursor.X--
 		currentRow := t.GetCursorRow()
 		currentRow.CursorX--
+		currentRow.currentRuneIndex--
+	case 0x07:
+		//
 	default:
 		Printf("Unexpect Execute: %02x", b)
 	}
@@ -329,10 +351,10 @@ func (t *TerminalScreen) CsiDispatch(params [][]uint16, intermediates []byte, ig
 		currentRow := t.GetCursorRow()
 		switch len(params) {
 		case 0:
-			currentRow.DeleteChars(1)
+			currentRow.InsertSpaces(1)
 		case 1:
 			charsNum := int(params[0][0])
-			currentRow.DeleteChars(charsNum)
+			currentRow.InsertSpaces(charsNum)
 		default:
 		}
 	default:
