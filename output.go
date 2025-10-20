@@ -15,7 +15,6 @@ func ParseOutput(p []byte) []string {
 	defer func() {
 		out.Release()
 	}()
-	
 	ret := make([]string, 0, 10)
 	for i := range out.Rows {
 		row := out.Rows[i]
@@ -31,7 +30,8 @@ func ParseOutput(p []byte) []string {
 
 func NewOutPutScreen() OutPutScreen {
 	return OutPutScreen{
-		Rows: make([]*TmuxRow, 0, 10),
+		Rows:    make([]*TmuxRow, 0, 10),
+		maxRows: 1000,
 	}
 }
 
@@ -43,6 +43,10 @@ type OutPutScreen struct {
 }
 
 func (o *OutPutScreen) Print(r rune) {
+	if o.CurrentRowIndex >= o.maxRows {
+		Printf("Output exceed max rows %d to Print", o.maxRows)
+		return
+	}
 	currentRow := o.GetCursorRow()
 	currentRow.Add(r)
 	o.Cursor.X += 1
@@ -53,6 +57,10 @@ func (o *OutPutScreen) Execute(b byte) {
 	case '\r':
 		o.Cursor.X = 0
 	case '\n':
+		if o.CurrentRowIndex >= o.maxRows {
+			Printf("Output exceed max rows %d to Execute", o.maxRows)
+			return
+		}
 		o.CurrentRowIndex++
 		o.Cursor.Y += 1
 		if len(o.Rows) <= o.CurrentRowIndex {
