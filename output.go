@@ -15,7 +15,7 @@ func ParseOutput(p []byte) []string {
 	defer func() {
 		out.Release()
 	}()
-	ret := make([]string, 0, 10)
+	ret := make([]string, 0, 1000)
 	for i := range out.Rows {
 		row := out.Rows[i]
 		rowStr := strings.TrimSpace(row.String())
@@ -30,7 +30,7 @@ func ParseOutput(p []byte) []string {
 
 func NewOutPutScreen() OutPutScreen {
 	return OutPutScreen{
-		Rows:    make([]*TmuxRow, 0, 10),
+		Rows:    make([]*TmuxRow, 0, 1000),
 		maxRows: 1000,
 	}
 }
@@ -57,13 +57,9 @@ func (o *OutPutScreen) Execute(b byte) {
 	case '\r':
 		o.Cursor.X = 0
 	case '\n':
-		if o.CurrentRowIndex >= o.maxRows {
-			Printf("Output exceed max rows %d to Execute", o.maxRows)
-			return
-		}
 		o.CurrentRowIndex++
 		o.Cursor.Y += 1
-		if len(o.Rows) <= o.CurrentRowIndex {
+		if len(o.Rows) <= o.maxRows {
 			o.Rows = append(o.Rows, &TmuxRow{})
 		}
 
@@ -104,6 +100,10 @@ func (p *OutPutScreen) GetCursorRow() *TmuxRow {
 	index := p.CurrentRowIndex - 1
 	if index < 0 {
 		index = 0
+	}
+	if p.CurrentRowIndex >= p.maxRows {
+		index = len(p.Rows) - 1
+		return p.Rows[index]
 	}
 	if index >= len(p.Rows) {
 		addNums := index - len(p.Rows) + 1
