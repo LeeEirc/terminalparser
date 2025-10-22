@@ -412,8 +412,7 @@ func (r *TRingRowBuffer) Append(v *TRow) {
 }
 
 func (r *TRingRowBuffer) Values() []*TRow {
-	var vals []*TRow
-
+	vals := make([]*TRow, 0, 1000)
 	if r.full {
 		r.current.Do(func(v any) {
 			if v != nil {

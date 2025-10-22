@@ -16,8 +16,9 @@ func ParseOutput(p []byte) []string {
 		out.Release()
 	}()
 	ret := make([]string, 0, 1000)
-	for i := range out.Rows {
-		row := out.Rows[i]
+	rows := out.Rows.Values()
+	for i := range rows {
+		row := rows[i]
 		rowStr := strings.TrimSpace(row.String())
 		if rowStr == "" {
 			continue
@@ -30,15 +31,15 @@ func ParseOutput(p []byte) []string {
 
 func NewOutPutScreen() OutPutScreen {
 	return OutPutScreen{
-		Rows:    make([]*TmuxRow, 0, 1000),
+		Rows:    NewTRingRowBuffer(1000),
 		maxRows: 1000,
 	}
 }
 
 type OutPutScreen struct {
-	Rows            []*TmuxRow // r 创建足够多的 rows
-	CurrentRowIndex int        // 根据光标设置，判断当前的row行数
-	Cursor          TmuxCursor // 默认从 （1，1） 开始 获取当前值的时候 默认需要 -1
+	Rows            *TRingRowBuffer // r 创建足够多的 rows
+	CurrentRowIndex int             // 根据光标设置，判断当前的row行数
+	Cursor          TmuxCursor      // 默认从 （1，1） 开始 获取当前值的时候 默认需要 -1
 	maxRows         int
 }
 
@@ -56,12 +57,15 @@ func (o *OutPutScreen) Execute(b byte) {
 	switch b {
 	case '\r':
 		o.Cursor.X = 0
+		currentRow := o.GetCursorRow()
+		currentRow.CursorX = 0
 	case '\n':
 		o.CurrentRowIndex++
 		o.Cursor.Y += 1
-		if len(o.Rows) <= o.maxRows {
-			o.Rows = append(o.Rows, &TmuxRow{})
+		if o.Rows.full {
+			return
 		}
+		o.Rows.Append(&TRow{CursorX: 1, Line: []rune{' '}})
 
 	case 0x08:
 		// 光标后退 1 位
@@ -96,28 +100,25 @@ func (o *OutPutScreen) CsiDispatch(params [][]uint16, intermediates []byte, igno
 func (o *OutPutScreen) EscDispatch(intermediates []byte, ignore bool, b byte) {
 }
 
-func (p *OutPutScreen) GetCursorRow() *TmuxRow {
+func (p *OutPutScreen) GetCursorRow() *TRow {
 	index := p.CurrentRowIndex - 1
 	if index < 0 {
 		index = 0
 	}
+	rows := p.Rows.Values()
 	if p.CurrentRowIndex >= p.maxRows {
-		index = len(p.Rows) - 1
-		return p.Rows[index]
+		return p.Rows.Current()
 	}
-	if index >= len(p.Rows) {
-		addNums := index - len(p.Rows) + 1
-		for i := 0; i < addNums; i++ {
-			p.Rows = append(p.Rows, &TmuxRow{})
-		}
+	if index >= p.maxRows {
+		return p.Rows.Current()
 	}
-	return p.Rows[index]
+	if index < len(rows) {
+		return rows[index]
+	}
+
+	return p.Rows.Current()
 }
 
 func (p *OutPutScreen) Release() {
-	for i := range p.Rows {
-		row := p.Rows[i]
-		row.Line = nil
-	}
-	p.Rows = nil
+	p.Rows.EraseAll()
 }
