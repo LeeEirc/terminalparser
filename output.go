@@ -105,10 +105,10 @@ func (p *OutPutScreen) GetCursorRow() *TRow {
 	if index < 0 {
 		index = 0
 	}
-	rows := p.Rows.Values()
 	if p.CurrentRowIndex >= p.maxRows {
 		return p.Rows.Current()
 	}
+	rows := p.Rows.Values()
 	if index >= p.maxRows {
 		return p.Rows.Current()
 	}
