@@ -107,7 +107,7 @@ func (s *Screen) parse(data []byte) []byte {
 			} else {
 				if len(s.Rows) == 0 && s.Cursor.Y == 0 {
 					s.Rows = append(s.Rows, &Row{
-						dataRune: make([]rune, 0, 1024),
+						dataRune: make([]rune, 0, 50),
 					})
 					s.Cursor.Y++
 				}
@@ -142,7 +142,7 @@ func (s *Screen) parseC0Sequence(code rune) {
 		s.Cursor.X = 0
 		if s.Cursor.Y > len(s.Rows) {
 			s.Rows = append(s.Rows, &Row{
-				dataRune: make([]rune, 0, 1024),
+				dataRune: make([]rune, 0, 50),
 			})
 		}
 	case 0x0a:
@@ -152,7 +152,7 @@ func (s *Screen) parseC0Sequence(code rune) {
 		s.Cursor.Y++
 		if s.Cursor.Y > len(s.Rows) {
 			s.Rows = append(s.Rows, &Row{
-				dataRune: make([]rune, 0, 1024),
+				dataRune: make([]rune, 0, 50),
 			})
 		}
 	default:
@@ -304,7 +304,7 @@ func (s *Screen) GetCursorRow() *Row {
 	}
 	if len(s.Rows) == 0 {
 		s.Rows = append(s.Rows, &Row{
-			dataRune: make([]rune, 0, 1024),
+			dataRune: make([]rune, 0, 50),
 		})
 	}
 	index := s.Cursor.Y - 1
