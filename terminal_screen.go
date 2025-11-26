@@ -431,6 +431,24 @@ func (r *TRingRowBuffer) Values() []*TRow {
 	return vals
 }
 
+func (r *TRingRowBuffer) ForEach(fn func(*TRow)) {
+	if r.full {
+		r.current.Do(func(v any) {
+			if v != nil {
+				fn(v.(*TRow))
+			}
+		})
+	} else {
+		p := r.start
+		for p != r.current {
+			if p.Value != nil {
+				fn(p.Value.(*TRow))
+			}
+			p = p.Next()
+		}
+	}
+}
+
 func (r *TRingRowBuffer) Last() *TRow {
 	prev := r.current.Prev()
 	if prev.Value == nil {

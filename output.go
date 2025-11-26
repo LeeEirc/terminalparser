@@ -15,24 +15,26 @@ func ParseOutput(p []byte) []string {
 	defer func() {
 		out.Release()
 	}()
-	ret := make([]string, 0, 1000)
-	rows := out.Rows.Values()
-	for i := range rows {
-		row := rows[i]
+	ret := make([]string, 0, 100)
+	currentRow := 0
+	out.Rows.ForEach(func(row *TRow) {
+		if currentRow > 500 {
+			return
+		}
 		rowStr := strings.TrimSpace(row.String())
 		if rowStr == "" {
-			continue
+			return
 		}
+		currentRow++
 		ret = append(ret, rowStr)
-	}
-
+	})
 	return ret
 }
 
 func NewOutPutScreen() OutPutScreen {
 	return OutPutScreen{
-		Rows:    NewTRingRowBuffer(1000),
-		maxRows: 1000,
+		Rows:    NewTRingRowBuffer(500),
+		maxRows: 500,
 	}
 }
 
