@@ -28,7 +28,7 @@ type Screen struct {
 
 	pasteMode bool // Set bracketed paste mode, xterm. ?2004h   reset ?2004l
 
-	title string
+	// title string
 
 	buffer  bytes.Buffer
 	ColLens int

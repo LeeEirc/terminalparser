@@ -70,9 +70,11 @@ const (
 	ACK
 	BEL
 	BS
+)
 
-	ST     rune = 0x9c
-	ESCKey      = 0x1b
+const (
+	ST     = 0x9c
+	ESCKey = 0x1b
 )
 
 var intermediateLookup [128]bool

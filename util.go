@@ -9,7 +9,7 @@ import (
 
 func DebugString(p string) string {
 	var s strings.Builder
-	for _, v := range []rune(p) {
+	for _, v := range p {
 		if unicode.IsPrint(v) {
 			s.WriteRune(v)
 		} else {
