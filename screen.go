@@ -28,7 +28,7 @@ type Screen struct {
 
 	pasteMode bool // Set bracketed paste mode, xterm. ?2004h   reset ?2004l
 
-	title string
+	// title string
 
 	buffer  bytes.Buffer
 	ColLens int
@@ -77,22 +77,21 @@ func (s *Screen) parse(data []byte) []byte {
 				rest = s.parseOSCSequence(rest)
 				continue
 			default:
-				if existIndex := bytes.IndexRune([]byte(string(Intermediate)), code); existIndex >= 0 {
+				if isIntermediate(code) {
 					// ESC
 					rest = s.parseIntermediate(code, rest)
 					continue
 				}
-				if existIndex := bytes.IndexRune([]byte(string(Parameters)), code); existIndex >= 0 {
-
+				if isParameter(code) {
 					Printf("Screen 未解析 ESC `%q` %x Parameters字符\n", code, code)
 					continue
 				}
-				if existIndex := bytes.IndexRune([]byte(string(Uppercase)), code); existIndex >= 0 {
+				if isUppercase(code) {
 					Printf("Screen 未解析 ESC `%q` %x Uppercase字符\n", code, code)
 					continue
 				}
 
-				if existIndex := bytes.IndexRune([]byte(string(Lowercase)), code); existIndex >= 0 {
+				if isLowercase(code) {
 					Printf("Screen 未解析 ESC `%q` %x Lowercase字符\n", code, code)
 					continue
 				}
@@ -102,7 +101,7 @@ func (s *Screen) parse(data []byte) []byte {
 		case Delete:
 			continue
 		default:
-			if existIndex := bytes.IndexRune([]byte(string(C0Control)), code); existIndex >= 0 {
+			if isC0Control(code) {
 				s.parseC0Sequence(code)
 			} else {
 				if len(s.Rows) == 0 && s.Cursor.Y == 0 {
@@ -199,12 +198,7 @@ func (s *Screen) parseCSISequence(p []byte) []byte {
 func (s *Screen) parseIntermediate(code rune, p []byte) []byte {
 	switch code {
 	case '(':
-		terminationIndex := bytes.IndexFunc(p, func(r rune) bool {
-			if insideIndex := bytes.IndexRune([]byte(string(Alphabetic)), r); insideIndex < 0 {
-				return false
-			}
-			return true
-		})
+		terminationIndex := bytes.IndexFunc(p, func(r rune) bool { return isAlphabetic(r) })
 		params := p[:terminationIndex+1]
 		switch string(params) {
 		case "B":
@@ -216,12 +210,7 @@ func (s *Screen) parseIntermediate(code rune, p []byte) []byte {
 		p = p[terminationIndex+1:]
 		return p
 	case ')':
-		terminationIndex := bytes.IndexFunc(p, func(r rune) bool {
-			if insideIndex := bytes.IndexRune([]byte(string(Alphabetic)), r); insideIndex < 0 {
-				return false
-			}
-			return true
-		})
+		terminationIndex := bytes.IndexFunc(p, func(r rune) bool { return isAlphabetic(r) })
 		p = p[terminationIndex+1:]
 	default:
 		Printf("Screen 未解析 ESC `%q` %x Intermediate字符\n", code, code)
@@ -245,7 +234,7 @@ func (s *Screen) appendCharacter(code rune) {
 	currentRow := s.GetCursorRow()
 	currentRow.changeCursorToX(s.Cursor.X)
 	currentRow.appendCharacter(code)
-	width := runewidth.StringWidth(string(code))
+	width := runewidth.RuneWidth(code)
 	s.Cursor.X += width
 }
 

@@ -22,7 +22,7 @@ func (r *Row) String() string {
 }
 
 func (r *Row) appendCharacter(code rune) {
-	width := runewidth.StringWidth(string(code))
+	width := runewidth.RuneWidth(code)
 	if r.currentRuneIndex < len(r.dataRune) {
 		r.dataRune[r.currentRuneIndex] = code
 	} else {
@@ -40,7 +40,7 @@ func (r *Row) insertCharacters(data []rune) {
 	copy(result[r.currentRuneIndex+len(data):], r.dataRune[r.currentRuneIndex:])
 	for i := range data {
 		r.currentRuneIndex++
-		r.currentX += runewidth.StringWidth(string(data[i]))
+		r.currentX += runewidth.RuneWidth(data[i])
 	}
 	r.dataRune = result
 }
@@ -55,7 +55,7 @@ func (r *Row) deleteChars(ps int) {
 	rest := r.dataRune[r.currentRuneIndex:]
 	inits := ps
 	for i := range rest {
-		inits -= runewidth.StringWidth(string(rest[i]))
+		inits -= runewidth.RuneWidth(rest[i])
 		if inits == 0 {
 			result = append(result, rest[i+1:]...)
 			break
@@ -70,7 +70,7 @@ func (r *Row) changeCurrentRuneIndex() {
 	}
 	currentRuneIndex := 0
 	for i := range r.dataRune {
-		currentRuneIndex += runewidth.StringWidth(string(r.dataRune[i]))
+		currentRuneIndex += runewidth.RuneWidth(r.dataRune[i])
 		if currentRuneIndex > r.currentX {
 			r.currentRuneIndex = i
 			return
