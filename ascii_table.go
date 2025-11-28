@@ -74,3 +74,41 @@ const (
 	ST     rune = 0x9c
 	ESCKey      = 0x1b
 )
+
+var intermediateLookup [128]bool
+var parametersLookup [128]bool
+var uppercaseLookup [128]bool
+var lowercaseLookup [128]bool
+var alphabeticLookup [128]bool
+var c0Lookup [128]bool
+
+func init() {
+	buildLookup(&intermediateLookup, Intermediate)
+	buildLookup(&parametersLookup, Parameters)
+	buildLookup(&uppercaseLookup, Uppercase)
+	buildLookup(&lowercaseLookup, Lowercase)
+	buildLookup(&alphabeticLookup, Alphabetic)
+	buildLookup(&c0Lookup, C0Control)
+}
+
+func buildLookup(dst *[128]bool, vals []rune) {
+	for _, r := range vals {
+		if r >= 0 && r < 128 {
+			dst[r] = true
+		}
+	}
+}
+
+func inLookup(dst *[128]bool, r rune) bool {
+	if r >= 0 && r < 128 {
+		return dst[r]
+	}
+	return false
+}
+
+func isIntermediate(r rune) bool { return inLookup(&intermediateLookup, r) }
+func isParameter(r rune) bool    { return inLookup(&parametersLookup, r) }
+func isUppercase(r rune) bool    { return inLookup(&uppercaseLookup, r) }
+func isLowercase(r rune) bool    { return inLookup(&lowercaseLookup, r) }
+func isAlphabetic(r rune) bool   { return inLookup(&alphabeticLookup, r) }
+func isC0Control(r rune) bool    { return inLookup(&c0Lookup, r) }

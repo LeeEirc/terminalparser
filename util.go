@@ -1,7 +1,6 @@
 package terminalparser
 
 import (
-	"bytes"
 	"fmt"
 	"strings"
 	"unicode"
@@ -21,11 +20,7 @@ func DebugString(p string) string {
 }
 
 func IsAlphabetic(r rune) bool {
-	index := bytes.IndexRune([]byte(string(Alphabetic)), r)
-	if index < 0 {
-		return false
-	}
-	return true
+	return isAlphabetic(r)
 }
 
 func ReadRunePacket(p []byte) (code rune, rest []byte) {
