@@ -1,12 +1,13 @@
 module ssh
 
-go 1.23.3
+go 1.26.0
 
 require (
 	github.com/LeeEirc/terminalparser v0.0.0
 	github.com/danielgatis/go-vte v1.0.9
 	github.com/gorilla/websocket v1.5.3
 	github.com/spf13/viper v1.20.1
+	go.mitchellh.com/libghostty v0.0.0-20260505203713-b203652ca87e
 	golang.org/x/crypto v0.40.0
 )
 
@@ -31,3 +32,5 @@ require (
 )
 
 replace github.com/LeeEirc/terminalparser => ../
+
+replace go.mitchellh.com/libghostty => ./libs/go-libghostty

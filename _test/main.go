@@ -11,6 +11,8 @@ import (
 
 	"github.com/gorilla/websocket"
 	"github.com/spf13/viper"
+
+	"go.mitchellh.com/libghostty"
 )
 
 var cfg = Config{}
@@ -54,6 +56,8 @@ func HandleWsSSH(w http.ResponseWriter, req *http.Request) {
 		log.Println(err2)
 		return
 	}
+	term, err := libghostty.NewTerminal(libghostty.WithSize(80, 24))
+	defer term.Close()
 	defer sshClient.client.Close()
 	wg.Add(2)
 	go func() {
@@ -67,6 +71,7 @@ func HandleWsSSH(w http.ResponseWriter, req *http.Request) {
 			switch msgType {
 			case websocket.TextMessage:
 				_, _ = sshClient.Write(p)
+				term.Write(p)
 				break
 			case websocket.BinaryMessage:
 				var wdSize windowSize
@@ -75,6 +80,7 @@ func HandleWsSSH(w http.ResponseWriter, req *http.Request) {
 				}
 				log.Println("wdSize:", wdSize)
 				sshClient.Resize(wdSize.Width, wdSize.High)
+				term.Resize(uint16(wdSize.Width), uint16(wdSize.High), 1, 1)
 			default:
 
 			}
@@ -88,7 +94,7 @@ func HandleWsSSH(w http.ResponseWriter, req *http.Request) {
 		for {
 			n, err1 := sshClient.Read(buf)
 			if err1 != nil {
-				log.Println("sshClient.Read:", err)
+				log.Println("sshClient.Read:", err1)
 				return
 			}
 			err3 := conn.WriteMessage(websocket.TextMessage, buf[:n])
