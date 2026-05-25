@@ -1,7 +1,10 @@
 package main
 
 import (
+	"crypto/rand"
 	"encoding/json"
+	"fmt"
+	"io"
 	"log"
 	"net/http"
 	"os"
@@ -16,12 +19,18 @@ import (
 )
 
 var cfg = Config{}
+var connMap = NewConnMap()
+
+var (
+	terms = make(map[string]any)
+)
 
 func main() {
 	LoadCfgFromEnv(&cfg)
 	loadConfigFromFile("config.yml", &cfg)
 	log.Printf("Config: %#v\n", cfg)
 	http.HandleFunc("/ws/ssh/", HandleWsSSH)
+	http.HandleFunc("/api/ssh/", HandleSSHResult)
 	log.Fatal(http.ListenAndServe(":5858", nil))
 }
 
@@ -39,6 +48,17 @@ type windowSize struct {
 	Width int `json:"width"`
 }
 
+type wsConnectMessage struct {
+	Type   string `json:"type"`
+	Config Config `json:"config"`
+}
+
+type wsResponse struct {
+	Type    string `json:"type"`
+	UUID    string `json:"uuid,omitempty"`
+	Message string `json:"message,omitempty"`
+}
+
 func HandleWsSSH(w http.ResponseWriter, req *http.Request) {
 	conn, err := upgrader.Upgrade(w, req, nil)
 	if err != nil {
@@ -50,18 +70,79 @@ func HandleWsSSH(w http.ResponseWriter, req *http.Request) {
 	conn.SetWriteDeadline(time.Time{})
 
 	defer conn.Close()
-	wg := sync.WaitGroup{}
-	sshClient, err2 := NewSSHClient(&cfg, 120, 100)
-	if err2 != nil {
-		log.Println(err2)
+	msgType, payload, err := conn.ReadMessage()
+	if err != nil {
+		log.Println("conn.ReadMessage connect:", err)
 		return
 	}
-	term, err := libghostty.NewTerminal(libghostty.WithSize(80, 24))
+	if msgType != websocket.TextMessage {
+		writeWSError(conn, "first websocket message must be a connect text message")
+		return
+	}
+
+	connectMsg := wsConnectMessage{}
+	if err = json.Unmarshal(payload, &connectMsg); err != nil {
+		writeWSError(conn, "invalid connect message json")
+		return
+	}
+	if connectMsg.Type != "connect" {
+		writeWSError(conn, "first websocket message type must be connect")
+		return
+	}
+
+	sshClient, err2 := NewSSHClient(&connectMsg.Config, 100, 120)
+	if err2 != nil {
+		log.Println("NewSSHClient:", err2)
+		writeWSError(conn, err2.Error())
+		return
+	}
+
+	term, err := libghostty.NewTerminal(libghostty.WithSize(100, 124), libghostty.WithMaxScrollback(1000))
+	if err != nil {
+		log.Println("libghostty.NewTerminal:", err)
+		sshClient.Close()
+		writeWSError(conn, "failed to create terminal")
+		return
+	}
 	defer term.Close()
-	defer sshClient.client.Close()
+
+	uuid, err := generateUUID()
+	if err != nil {
+		log.Println("generateUUID:", err)
+		sshClient.Close()
+		writeWSError(conn, "failed to generate connection uuid")
+		return
+	}
+	terms[uuid] = term
+	connState := NewConn(uuid, sshClient)
+
+	if ok := connMap.Add(connState); !ok {
+		sshClient.Close()
+		writeWSError(conn, "connection uuid already exists")
+		return
+	}
+	if err = conn.WriteJSON(wsResponse{Type: "connected", UUID: uuid}); err != nil {
+		connState.Close()
+		connMap.Delete(uuid)
+		log.Println("conn.WriteJSON connected:", err)
+		return
+	}
+
+	wg := sync.WaitGroup{}
+	closeOnce := sync.Once{}
+	cleanup := func() {
+		closeOnce.Do(func() {
+			connState.Close()
+			connMap.Delete(uuid)
+			_ = conn.Close()
+		})
+	}
+	defer cleanup()
+
 	wg.Add(2)
 	go func() {
 		defer wg.Done()
+		defer cleanup()
 		for {
 			msgType, p, err1 := conn.ReadMessage()
 			if err1 != nil {
@@ -70,8 +151,10 @@ func HandleWsSSH(w http.ResponseWriter, req *http.Request) {
 			}
 			switch msgType {
 			case websocket.TextMessage:
-				_, _ = sshClient.Write(p)
-				term.Write(p)
+				if _, err = sshClient.Write(p); err != nil {
+					log.Println("sshClient.Write:", err)
+					return
+				}
 				break
 			case websocket.BinaryMessage:
 				var wdSize windowSize
@@ -80,7 +163,7 @@ func HandleWsSSH(w http.ResponseWriter, req *http.Request) {
 				}
 				log.Println("wdSize:", wdSize)
 				sshClient.Resize(wdSize.Width, wdSize.High)
-				term.Resize(uint16(wdSize.Width), uint16(wdSize.High), 1, 1)
+				term.Resize(uint16(wdSize.Width), uint16(wdSize.High), 0, 0)
 			default:
 
 			}
@@ -90,6 +173,7 @@ func HandleWsSSH(w http.ResponseWriter, req *http.Request) {
 
 	go func() {
 		defer wg.Done()
+		defer cleanup()
 		buf := make([]byte, maxMessageSize)
 		for {
 			n, err1 := sshClient.Read(buf)
@@ -102,10 +186,112 @@ func HandleWsSSH(w http.ResponseWriter, req *http.Request) {
 				log.Println("conn.WriteMessage:", err3)
 				return
 			}
+			connState.lock.Lock()
+			term.Write(buf[:n])
+			connState.lock.Unlock()
 		}
 	}()
 
 	wg.Wait()
+}
+
+func HandleSSHResult(w http.ResponseWriter, req *http.Request) {
+	if req.Method != http.MethodGet {
+		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+	prefix := "/api/ssh/"
+	suffix := "/result"
+	if !strings.HasPrefix(req.URL.Path, prefix) || !strings.HasSuffix(req.URL.Path, suffix) {
+		http.NotFound(w, req)
+		return
+	}
+	uuid := strings.TrimSuffix(strings.TrimPrefix(req.URL.Path, prefix), suffix)
+	uuid = strings.Trim(uuid, "/")
+	if uuid == "" {
+		http.NotFound(w, req)
+		return
+	}
+	conn, ok := connMap.Get(uuid)
+	if !ok {
+		http.NotFound(w, req)
+		return
+	}
+	conn.lock.Lock()
+	defer conn.lock.Unlock()
+	w.Header().Set("Content-Type", "application/json")
+	term := terms[uuid].(*libghostty.Terminal)
+	f, err := libghostty.NewFormatter(term,
+		libghostty.WithFormatterFormat(libghostty.FormatterFormatPlain),
+		libghostty.WithFormatterTrim(true),
+	)
+	if err != nil {
+		log.Println("libghostty.NewFormatter:", err)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	defer f.Close()
+	screen, err := term.ActiveScreen()
+	if err != nil {
+		log.Println("term.ActiveScreen:", err)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	if screen == libghostty.ScreenAlternate {
+		log.Println("term.ActiveScreen: ScreenAlternate may vim vi tmux")
+		title, err := term.Title()
+		if err != nil {
+			log.Println("term.Title err:", err)
+		}
+		log.Println("term.Title:", title)
+		pwd, err := term.Pwd()
+		if err != nil {
+			log.Println("term.Pwd err:", err)
+		}
+		log.Println("term.Pwd:", pwd)
+		x, err := term.CursorX()
+		if err != nil {
+			log.Println("term.CursorX err", err)
+		}
+		log.Println("colx ", x)
+		y, err := term.CursorY()
+		if err != nil {
+			log.Println("term.CursorY err", err)
+		}
+		log.Println("term.CursorY:", y)
+	}
+
+	ret, err := f.FormatString()
+	if err != nil {
+		log.Println("libghostty.FormatString:", err)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	_, _ = io.WriteString(w, ret)
+	log.Printf("HandleSSHResult: served result for uuid %s\n", uuid)
+}
+
+func writeWSError(conn *websocket.Conn, message string) {
+	if err := conn.WriteJSON(wsResponse{Type: "error", Message: message}); err != nil {
+		log.Println("conn.WriteJSON error:", err)
+	}
+}
+
+func generateUUID() (string, error) {
+	var b [16]byte
+	if _, err := rand.Read(b[:]); err != nil {
+		return "", err
+	}
+	b[6] = (b[6] & 0x0f) | 0x40
+	b[8] = (b[8] & 0x3f) | 0x80
+	return fmt.Sprintf("%08x-%04x-%04x-%04x-%012x",
+		b[0:4],
+		b[4:6],
+		b[6:8],
+		b[8:10],
+		b[10:16],
+	), nil
 }
 
 func LoadCfgFromEnv(conf *Config) {

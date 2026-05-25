@@ -38,7 +38,7 @@ func init() {
 type TerminalParser struct {
 	InputBuf bytes.Buffer
 	Ps1sStr  string
-	Screen   terminalparser.Screen
+	Screen   *terminalparser.Screen
 	state    int
 	once     sync.Once
 	mux      sync.Mutex

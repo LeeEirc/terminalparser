@@ -32,6 +32,10 @@ return {
         ws: true,
         changeOrigin: true,
       },
+      '^/api/ssh/': {
+        target: env.VITE_KOKO_API_URL,
+        changeOrigin: true,
+      },
     },
   },
 }})
