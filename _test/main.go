@@ -97,7 +97,7 @@ func HandleWsSSH(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	term, err := libghostty.NewTerminal(libghostty.WithSize(100, 124), libghostty.WithMaxScrollback(1000))
+	term, err := libghostty.NewTerminal(libghostty.WithSize(100, 120))
 	if err != nil {
 		log.Println("libghostty.NewTerminal:", err)
 		sshClient.Close()
@@ -181,7 +181,7 @@ func HandleWsSSH(w http.ResponseWriter, req *http.Request) {
 				log.Println("sshClient.Read:", err1)
 				return
 			}
-			err3 := conn.WriteMessage(websocket.TextMessage, buf[:n])
+			err3 := conn.WriteMessage(websocket.BinaryMessage, buf[:n])
 			if err3 != nil {
 				log.Println("conn.WriteMessage:", err3)
 				return

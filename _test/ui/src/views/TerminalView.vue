@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { Terminal } from '@xterm/xterm';
-import { AttachAddon } from '@xterm/addon-attach';
+import type { IDisposable } from '@xterm/xterm';
 import { onMounted, onUnmounted, reactive, shallowRef } from "vue";
 const PORT = document.location.port ? `:${document.location.port}` : '';
 const SCHEME = document.location.protocol === 'https:' ? 'wss' : 'ws';
@@ -20,6 +20,7 @@ const form = reactive({
 });
 const terminalRef = shallowRef<Terminal>();
 const wsRef = shallowRef<WebSocket>();
+const terminalInputRef = shallowRef<IDisposable>();
 const uuid = shallowRef('');
 const errorMessage = shallowRef('');
 const connected = shallowRef(false);
@@ -39,6 +40,7 @@ onMounted(() => {
 });
 
 onUnmounted(() => {
+  terminalInputRef.value?.dispose();
   wsRef.value?.close();
   terminalRef.value?.dispose();
 });
@@ -53,6 +55,7 @@ function connectSSH() {
 
   const wsURL = `${BASE_WS_URL}/ws/ssh/`;
   const ws = new WebSocket(wsURL);
+  ws.binaryType = 'arraybuffer';
   wsRef.value = ws;
 
   ws.addEventListener('open', () => {
@@ -68,6 +71,16 @@ function connectSSH() {
   });
 
   ws.addEventListener('message', (event) => {
+    if (event.data instanceof ArrayBuffer) {
+      terminalRef.value?.write(new Uint8Array(event.data));
+      return;
+    }
+    if (event.data instanceof Blob) {
+      event.data.arrayBuffer().then((buffer) => {
+        terminalRef.value?.write(new Uint8Array(buffer));
+      });
+      return;
+    }
     if (typeof event.data !== 'string') {
       return;
     }
@@ -77,7 +90,12 @@ function connectSSH() {
         uuid.value = message.uuid;
         connected.value = true;
         connecting.value = false;
-        terminalRef.value?.loadAddon(new AttachAddon(ws));
+        terminalInputRef.value?.dispose();
+        terminalInputRef.value = terminalRef.value?.onData((data) => {
+          if (ws.readyState === WebSocket.OPEN) {
+            ws.send(data);
+          }
+        });
         return;
       }
       if (message.type === 'error') {
@@ -87,11 +105,13 @@ function connectSSH() {
         ws.close();
       }
     } catch {
-      // Terminal output is also delivered as text frames; AttachAddon handles it after connection.
+      terminalRef.value?.write(event.data);
     }
   });
 
   ws.addEventListener('close', () => {
+    terminalInputRef.value?.dispose();
+    terminalInputRef.value = undefined;
     connecting.value = false;
     connected.value = false;
   });
