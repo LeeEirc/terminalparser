@@ -3,8 +3,6 @@ module ssh
 go 1.26.0
 
 require (
-	github.com/LeeEirc/terminalparser v0.0.0
-	github.com/danielgatis/go-vte v1.0.9
 	github.com/gorilla/websocket v1.5.3
 	github.com/spf13/viper v1.20.1
 	go.mitchellh.com/libghostty v0.0.0-20260505203713-b203652ca87e
@@ -12,12 +10,9 @@ require (
 )
 
 require (
-	github.com/danielgatis/go-utf8 v1.0.1 // indirect
 	github.com/fsnotify/fsnotify v1.8.0 // indirect
 	github.com/go-viper/mapstructure/v2 v2.2.1 // indirect
-	github.com/mattn/go-runewidth v0.0.16 // indirect
 	github.com/pelletier/go-toml/v2 v2.2.3 // indirect
-	github.com/rivo/uniseg v0.4.7 // indirect
 	github.com/sagikazarmark/locafero v0.7.0 // indirect
 	github.com/sourcegraph/conc v0.3.0 // indirect
 	github.com/spf13/afero v1.12.0 // indirect
@@ -32,5 +27,3 @@ require (
 )
 
 replace github.com/LeeEirc/terminalparser => ../
-
-replace go.mitchellh.com/libghostty => ./libs/go-libghostty
