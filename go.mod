@@ -1,13 +1,5 @@
 module github.com/LeeEirc/terminalparser
 
-go 1.23
+go 1.26.0
 
-require (
-	github.com/danielgatis/go-vte v1.0.9
-	github.com/mattn/go-runewidth v0.0.16
-)
-
-require (
-	github.com/danielgatis/go-utf8 v1.0.1 // indirect
-	github.com/rivo/uniseg v0.4.7 // indirect
-)
+require go.mitchellh.com/libghostty v0.0.0-20260505203713-b203652ca87e

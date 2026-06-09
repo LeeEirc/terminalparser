@@ -13,7 +13,6 @@ type ConnMap struct {
 type Conn struct {
 	UUID      string
 	SSHClient *SSHClient
-	Parser    *TerminalParser
 
 	lock      sync.RWMutex
 	result    ParseResult
