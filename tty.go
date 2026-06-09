@@ -1,6 +1,7 @@
 package terminalparser
 
 import (
+	"strings"
 	"sync"
 
 	"go.mitchellh.com/libghostty"
@@ -57,6 +58,14 @@ func (t *TerminalVT) String() (string, error) {
 	return ret, nil
 }
 
+func (t *TerminalVT) ScreenRows() ([]string, error) {
+	screenStr, err := t.String()
+	if err != nil {
+		return nil, err
+	}
+	return strings.Split(screenStr, "\n"), nil
+}
+
 func (t *TerminalVT) Title() (string, error) {
 	t.mutex.Lock()
 	defer t.mutex.Unlock()
@@ -75,14 +84,22 @@ func (t *TerminalVT) CursorY() (uint16, error) {
 	return t.VT.CursorY()
 }
 
-func (t *TerminalVT) Cols() (uint16, error) {
+func (t *TerminalVT) IsScreenAlternate() (bool, error) {
 	t.mutex.Lock()
 	defer t.mutex.Unlock()
-	return t.VT.Cols()
+	screen, err := t.VT.ActiveScreen()
+	if err != nil {
+		return false, err
+	}
+	return screen == libghostty.ScreenAlternate, nil
 }
 
-func (t *TerminalVT) Rows() (uint16, error) {
+func (t *TerminalVT) Lock() {
+	// Lock the mutex to ensure thread safety when accessing the raw terminal
 	t.mutex.Lock()
-	defer t.mutex.Unlock()
-	return t.VT.Rows()
+}
+
+func (t *TerminalVT) Unlock() {
+	// Unlock the mutex after accessing the raw terminal
+	t.mutex.Unlock()
 }
