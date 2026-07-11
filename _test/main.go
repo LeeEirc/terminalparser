@@ -12,18 +12,15 @@ import (
 	"sync"
 	"time"
 
+	"github.com/LeeEirc/terminalparser"
 	"github.com/gorilla/websocket"
 	"github.com/spf13/viper"
-
-	"go.mitchellh.com/libghostty"
 )
 
 var cfg = Config{}
 var connMap = NewConnMap()
 
-var (
-	terms = make(map[string]any)
-)
+var terms sync.Map
 
 func main() {
 	LoadCfgFromEnv(&cfg)
@@ -97,9 +94,12 @@ func HandleWsSSH(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	term, err := libghostty.NewTerminal(libghostty.WithSize(100, 120))
+	term, err := terminalparser.New(
+		terminalparser.WithSize(100, 120),
+		terminalparser.WithMaxScrollback(2000),
+	)
 	if err != nil {
-		log.Println("libghostty.NewTerminal:", err)
+		log.Println("terminalparser.New:", err)
 		sshClient.Close()
 		writeWSError(conn, "failed to create terminal")
 		return
@@ -113,7 +113,7 @@ func HandleWsSSH(w http.ResponseWriter, req *http.Request) {
 		writeWSError(conn, "failed to generate connection uuid")
 		return
 	}
-	terms[uuid] = term
+	terms.Store(uuid, term)
 	connState := NewConn(uuid, sshClient)
 
 	if ok := connMap.Add(connState); !ok {
@@ -132,6 +132,7 @@ func HandleWsSSH(w http.ResponseWriter, req *http.Request) {
 	closeOnce := sync.Once{}
 	cleanup := func() {
 		closeOnce.Do(func() {
+			terms.Delete(uuid)
 			connState.Close()
 			connMap.Delete(uuid)
 			_ = conn.Close()
@@ -163,7 +164,9 @@ func HandleWsSSH(w http.ResponseWriter, req *http.Request) {
 				}
 				log.Println("wdSize:", wdSize)
 				sshClient.Resize(wdSize.Width, wdSize.High)
-				term.Resize(uint16(wdSize.Width), uint16(wdSize.High), 0, 0)
+				if err = term.Resize(uint16(wdSize.Width), uint16(wdSize.High), 0, 0); err != nil {
+					log.Println("terminal.Resize:", err)
+				}
 			default:
 
 			}
@@ -187,7 +190,9 @@ func HandleWsSSH(w http.ResponseWriter, req *http.Request) {
 				return
 			}
 			connState.lock.Lock()
-			term.Write(buf[:n])
+			if _, err = term.Write(buf[:n]); err != nil {
+				log.Println("terminal.Write:", err)
+			}
 			connState.lock.Unlock()
 		}
 	}()
@@ -220,36 +225,26 @@ func HandleSSHResult(w http.ResponseWriter, req *http.Request) {
 	conn.lock.Lock()
 	defer conn.lock.Unlock()
 	w.Header().Set("Content-Type", "application/json")
-	term := terms[uuid].(*libghostty.Terminal)
-	f, err := libghostty.NewFormatter(term,
-		libghostty.WithFormatterFormat(libghostty.FormatterFormatPlain),
-		libghostty.WithFormatterTrim(true),
-	)
-	if err != nil {
-		log.Println("libghostty.NewFormatter:", err)
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+	value, ok := terms.Load(uuid)
+	if !ok {
+		http.NotFound(w, req)
 		return
 	}
-	defer f.Close()
-	screen, err := term.ActiveScreen()
+	term := value.(*terminalparser.TerminalVT)
+	alternate, err := term.IsScreenAlternate()
 	if err != nil {
-		log.Println("term.ActiveScreen:", err)
+		log.Println("term.IsScreenAlternate:", err)
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 
-	if screen == libghostty.ScreenAlternate {
-		log.Println("term.ActiveScreen: ScreenAlternate may vim vi tmux")
+	if alternate {
+		log.Println("term.IsScreenAlternate: alternate screen may be vim, vi, or tmux")
 		title, err := term.Title()
 		if err != nil {
 			log.Println("term.Title err:", err)
 		}
 		log.Println("term.Title:", title)
-		pwd, err := term.Pwd()
-		if err != nil {
-			log.Println("term.Pwd err:", err)
-		}
-		log.Println("term.Pwd:", pwd)
 		x, err := term.CursorX()
 		if err != nil {
 			log.Println("term.CursorX err", err)
@@ -262,9 +257,9 @@ func HandleSSHResult(w http.ResponseWriter, req *http.Request) {
 		log.Println("term.CursorY:", y)
 	}
 
-	ret, err := f.FormatString()
+	ret, err := term.String()
 	if err != nil {
-		log.Println("libghostty.FormatString:", err)
+		log.Println("terminal.String:", err)
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}

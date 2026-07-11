@@ -1,2 +1,2 @@
-go.mitchellh.com/libghostty v0.0.0-20260505203713-b203652ca87e h1:qFDU8qfxCMv/gWl8bbVvjBZfFMZuTwB4GjnYgIKbCJo=
-go.mitchellh.com/libghostty v0.0.0-20260505203713-b203652ca87e/go.mod h1:sx8yDvnDrQC/PzsrFfYx7ROmH8my91nz7lOxQb6sbo0=
+go.mitchellh.com/libghostty v0.0.0-20260710165742-102a50836ce6 h1:IChRpD6xn1EWuRNlSH3RitYjxQiWNg3CQSn2ygJ+y0w=
+go.mitchellh.com/libghostty v0.0.0-20260710165742-102a50836ce6/go.mod h1:sx8yDvnDrQC/PzsrFfYx7ROmH8my91nz7lOxQb6sbo0=
