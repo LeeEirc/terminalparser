@@ -301,6 +301,67 @@ func (t *TerminalVT) ScreenRows() ([]string, error) {
 	return strings.Split(screen, "\n"), nil
 }
 
+// CursorRow returns the plain-text contents of the physical row containing
+// the cursor. Unlike ScreenRows, it formats only that row and does not walk or
+// copy the terminal's scrollback history.
+func (t *TerminalVT) CursorRow() (string, error) {
+	t.mutex.Lock()
+	defer t.mutex.Unlock()
+
+	if t.vt == nil {
+		return "", ErrClosed
+	}
+	columns, err := t.vt.Cols()
+	if err != nil {
+		return "", err
+	}
+	y, err := t.vt.CursorY()
+	if err != nil {
+		return "", err
+	}
+	start, err := t.vt.GridRef(libghostty.Point{
+		Tag: libghostty.PointTagActive,
+		Y:   uint32(y),
+	})
+	if err != nil {
+		return "", err
+	}
+	end, err := t.vt.GridRef(libghostty.Point{
+		Tag: libghostty.PointTagActive,
+		X:   columns - 1,
+		Y:   uint32(y),
+	})
+	if err != nil {
+		return "", err
+	}
+	selection := &libghostty.Selection{Start: *start, End: *end}
+	return t.vt.SelectionFormatString(
+		libghostty.WithSelection(selection),
+		libghostty.WithSelectionFormat(libghostty.FormatterFormatPlain),
+		libghostty.WithSelectionTrim(t.trim),
+		libghostty.WithSelectionUnwrap(t.unwrap),
+	)
+}
+
+// Size returns the current terminal dimensions in character cells.
+func (t *TerminalVT) Size() (columns, rows uint16, err error) {
+	t.mutex.Lock()
+	defer t.mutex.Unlock()
+
+	if t.vt == nil {
+		return 0, 0, ErrClosed
+	}
+	columns, err = t.vt.Cols()
+	if err != nil {
+		return 0, 0, err
+	}
+	rows, err = t.vt.Rows()
+	if err != nil {
+		return 0, 0, err
+	}
+	return columns, rows, nil
+}
+
 // Title returns the title last set by an OSC 0 or OSC 2 sequence. It returns
 // an empty string when no title has been set.
 func (t *TerminalVT) Title() (string, error) {

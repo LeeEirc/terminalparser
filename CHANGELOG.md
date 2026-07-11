@@ -9,6 +9,7 @@
 - 新增 `New` 与 `Option` API，以及 `WithSize`、`WithMaxScrollback`、`WithTrim`、
   `WithUnwrap` 配置项。
 - 新增带错误返回的一次性解析 API：`Parse` 和 `ParseString`。
+- 新增 `CursorRow` 和 `Size`，分别用于低分配读取光标物理行及当前终端尺寸。
 - 新增 `Reset`，并为关闭后的操作统一返回 `ErrClosed`。
 - 新增包文档、安装说明、一次性/流式使用示例和公开 API 行为约定。
 - 新增 VT 控制序列、标题、光标、备选屏幕、并发访问、关闭和兼容入口测试。

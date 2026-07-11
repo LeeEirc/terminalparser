@@ -51,6 +51,76 @@ func TestTerminalState(t *testing.T) {
 	}
 }
 
+func TestCursorRowUsesCursorInsteadOfLastScreenRow(t *testing.T) {
+	terminal, err := New(WithSize(24, 4), WithMaxScrollback(0))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer terminal.Close()
+
+	if _, err := terminal.Write([]byte(
+		"\x1b[?1049h" +
+			"\x1b[1;1Huser@tmux$ echo hi" +
+			"\x1b[4;1H[0] bash status" +
+			"\x1b[1;19H",
+	)); err != nil {
+		t.Fatal(err)
+	}
+
+	row, err := terminal.CursorRow()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if row != "user@tmux$ echo hi" {
+		t.Fatalf("CursorRow() = %q", row)
+	}
+}
+
+func TestCursorRowRestoresPrimaryScreen(t *testing.T) {
+	terminal, err := New(WithSize(24, 4), WithMaxScrollback(0))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer terminal.Close()
+
+	if _, err := terminal.Write([]byte("primary$ \x1b[?1049halternate$ \x1b[?1049l")); err != nil {
+		t.Fatal(err)
+	}
+	row, err := terminal.CursorRow()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if row != "primary$" {
+		t.Fatalf("CursorRow() = %q", row)
+	}
+}
+
+func TestSizeTracksResize(t *testing.T) {
+	terminal, err := New(WithSize(80, 24))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer terminal.Close()
+
+	columns, rows, err := terminal.Size()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if columns != 80 || rows != 24 {
+		t.Fatalf("Size() = %dx%d", columns, rows)
+	}
+	if err := terminal.Resize(132, 43, 0, 0); err != nil {
+		t.Fatal(err)
+	}
+	columns, rows, err = terminal.Size()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if columns != 132 || rows != 43 {
+		t.Fatalf("Size() after Resize = %dx%d", columns, rows)
+	}
+}
+
 func TestAlternateScreen(t *testing.T) {
 	terminal, err := New()
 	if err != nil {
@@ -98,6 +168,12 @@ func TestCloseIsIdempotent(t *testing.T) {
 	if _, err := terminal.String(); !errors.Is(err, ErrClosed) {
 		t.Fatalf("String() error = %v, want ErrClosed", err)
 	}
+	if _, err := terminal.CursorRow(); !errors.Is(err, ErrClosed) {
+		t.Fatalf("CursorRow() error = %v, want ErrClosed", err)
+	}
+	if _, _, err := terminal.Size(); !errors.Is(err, ErrClosed) {
+		t.Fatalf("Size() error = %v, want ErrClosed", err)
+	}
 }
 
 func TestConcurrentAccess(t *testing.T) {
@@ -119,6 +195,10 @@ func TestConcurrentAccess(t *testing.T) {
 				}
 				if _, err := terminal.CursorX(); err != nil {
 					t.Errorf("CursorX() error: %v", err)
+					return
+				}
+				if _, err := terminal.CursorRow(); err != nil {
+					t.Errorf("CursorRow() error: %v", err)
 					return
 				}
 			}
@@ -160,5 +240,40 @@ func TestParseIncludesScrollback(t *testing.T) {
 	output := strings.Join(rows, "\n")
 	if !strings.Contains(output, "line-00") || !strings.Contains(output, "line-29") {
 		t.Fatalf("Parse() did not retain the full configured history: %q", output)
+	}
+}
+
+func benchmarkTerminalWithScrollback(b *testing.B) *TerminalVT {
+	b.Helper()
+	terminal, err := New(WithSize(80, 24), WithMaxScrollback(2000))
+	if err != nil {
+		b.Fatal(err)
+	}
+	b.Cleanup(func() { _ = terminal.Close() })
+	for index := range 2000 {
+		if _, err := fmt.Fprintf(terminal, "line-%04d build output\r\n", index); err != nil {
+			b.Fatal(err)
+		}
+	}
+	return terminal
+}
+
+func BenchmarkTerminalCursorRow(b *testing.B) {
+	terminal := benchmarkTerminalWithScrollback(b)
+	b.ResetTimer()
+	for b.Loop() {
+		if _, err := terminal.CursorRow(); err != nil {
+			b.Fatal(err)
+		}
+	}
+}
+
+func BenchmarkTerminalScreenRows(b *testing.B) {
+	terminal := benchmarkTerminalWithScrollback(b)
+	b.ResetTimer()
+	for b.Loop() {
+		if _, err := terminal.ScreenRows(); err != nil {
+			b.Fatal(err)
+		}
 	}
 }

@@ -83,13 +83,17 @@ if _, err := terminal.Write(chunk); err != nil {
 
 text, err := terminal.String()
 rows, err := terminal.ScreenRows()
+cursorRow, err := terminal.CursorRow()
+columns, rowsCount, err := terminal.Size()
 title, err := terminal.Title()
 x, err := terminal.CursorX()
 y, err := terminal.CursorY()
 alternate, err := terminal.IsScreenAlternate()
 ```
 
-`String`/`ScreenRows` 是调用时刻的快照。`WithTrim` 控制行尾空格，`WithUnwrap`
+`String`/`ScreenRows` 是调用时刻的完整快照；只需要命令行光标所在行时应使用
+`CursorRow`，它不会遍历或复制 scrollback。`Size` 返回当前列数和行数，并会反映最近
+一次 `Resize`。`WithTrim` 控制行尾空格，`WithUnwrap`
 控制是否合并由终端宽度造成的软换行。所有读取、写入、缩放、重置和关闭操作均由库
 内部串行化；`Close` 可重复调用，关闭后的操作返回 `ErrClosed`。
 
