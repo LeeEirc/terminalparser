@@ -11,6 +11,10 @@ on:
         description: 'Zig compiler version'
         required: true
         default: '0.14.1'
+      create_release:
+        description: 'Create a GitHub Release'
+        type: boolean
+        default: false
   push:
     tags:
       - 'libghostty-vt/*'
@@ -92,9 +96,10 @@ jobs:
           retention-days: 30
 
       - name: Create Release & upload asset
-        if: startsWith(github.ref, 'refs/tags/libghostty-vt/')
+        if: startsWith(github.ref, 'refs/tags/libghostty-vt/') || inputs.create_release
         uses: softprops/action-gh-release@v2
         with:
+          tag_name: libghostty-vt/${{ env.GHOSTTY_VERSION }}
           files: ${{ env.ARCHIVE }}
           generate_release_notes: true
 
