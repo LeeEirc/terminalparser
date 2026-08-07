@@ -1,0 +1,123 @@
+name: Build libghostty-vt
+
+on:
+  workflow_dispatch:
+    inputs:
+      ghostty_tag:
+        description: 'Ghostty git tag to build'
+        required: true
+        default: 'v1.3.1'
+      zig_version:
+        description: 'Zig compiler version'
+        required: true
+        default: '0.14.1'
+  push:
+    tags:
+      - 'libghostty-vt/*'
+
+permissions:
+  contents: write
+
+env:
+  GHOSTTY_TAG: ${{ inputs.ghostty_tag || 'v1.3.1' }}
+  ZIG_VERSION: ${{ inputs.zig_version || '0.14.1' }}
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - target: x86_64-linux
+            artifact: linux-amd64
+            runner: ubuntu-latest
+          - target: aarch64-linux
+            artifact: linux-arm64
+            runner: ubuntu-latest
+          - target: x86_64-macos
+            artifact: darwin-amd64
+            runner: macos-13
+          - target: aarch64-macos
+            artifact: darwin-arm64
+            runner: macos-latest
+
+    runs-on: ${{ matrix.runner }}
+    name: Build (${{ matrix.artifact }})
+    env:
+      ZIG_TARGET: ${{ matrix.target }}
+      ARTIFACT_NAME: ${{ matrix.artifact }}
+
+    steps:
+      - name: Set install prefix
+        run: echo "INSTALL_PREFIX=${RUNNER_TEMP}/install" >> "$GITHUB_ENV"
+
+      - name: Install Zig
+        uses: goto-bus-stop/setup-zig@v2
+        with:
+          version: ${{ env.ZIG_VERSION }}
+
+      - name: Clone Ghostty
+        run: git clone --depth 1 --branch "${GHOSTTY_TAG}" https://github.com/ghostty-org/ghostty.git
+
+      - name: Build libghostty-vt
+        run: |
+          cd ghostty
+          zig build -Demit-lib-vt -Doptimize=ReleaseFast \
+            -Dtarget="${ZIG_TARGET}" \
+            --prefix "${INSTALL_PREFIX}"
+
+      - name: Package
+        run: |
+          ARCHIVE="libghostty-vt-${GHOSTTY_TAG}-${ARTIFACT_NAME}.tar.gz"
+          tar -czf "${ARCHIVE}" -C "${INSTALL_PREFIX}" .
+          echo "ARCHIVE=${ARCHIVE}" >> "$GITHUB_ENV"
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: libghostty-vt-${{ matrix.artifact }}
+          path: ${{ env.ARCHIVE }}
+          retention-days: 30
+
+      - name: Create Release & upload asset
+        if: startsWith(github.ref, 'refs/tags/libghostty-vt/')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: ${{ env.ARCHIVE }}
+          generate_release_notes: true
+
+  verify:
+    needs: build
+    runs-on: ubuntu-latest
+    name: Verify (linux-amd64)
+    if: startsWith(github.ref, 'refs/tags/libghostty-vt/') || github.event_name == 'workflow_dispatch'
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set ghostty prefix
+        run: echo "GHOSTTY_PREFIX=${RUNNER_TEMP}/libghostty-vt" >> "$GITHUB_ENV"
+
+      - name: Install Zig
+        uses: goto-bus-stop/setup-zig@v2
+        with:
+          version: ${{ env.ZIG_VERSION }}
+
+      - name: Clone Ghostty
+        run: git clone --depth 1 --branch "${GHOSTTY_TAG}" https://github.com/ghostty-org/ghostty.git
+
+      - name: Build libghostty-vt (native)
+        run: |
+          cd ghostty
+          zig build -Demit-lib-vt -Doptimize=ReleaseFast \
+            --prefix "${GHOSTTY_PREFIX}"
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.26'
+
+      - name: Run tests
+        env:
+          PKG_CONFIG_PATH: ${{ env.GHOSTTY_PREFIX }}/share/pkgconfig
+          CGO_ENABLED: '1'
+        run: go test -v -count=1 ./...
