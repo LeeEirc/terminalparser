@@ -14,7 +14,25 @@ go get github.com/LeeEirc/terminalparser@latest
 ```
 
 本包通过 cgo 使用 `go.mitchellh.com/libghostty`。`go get` 会取得全部 Go 依赖；编译
-前还需要安装 `libghostty-vt`，并让 `pkg-config` 能找到它：
+前还需要安装 `libghostty-vt`，并让 `pkg-config` 能找到它。
+
+### 预编译二进制（推荐）
+
+从本仓库的 [GitHub Releases](../../releases) 下载对应平台的 `libghostty-vt-*.tar.gz`，
+解压到任意目录后即可使用：
+
+```bash
+# 解压到目标目录（以 linux-amd64 为例）
+mkdir -p /opt/libghostty-vt
+tar -xzf libghostty-vt-v1.3.1-linux-amd64.tar.gz -C /opt/libghostty-vt
+
+export PKG_CONFIG_PATH=/opt/libghostty-vt/share/pkgconfig
+go build ./...
+```
+
+可用的预编译平台：`linux-amd64`、`linux-arm64`、`darwin-amd64`、`darwin-arm64`。
+
+### 从源码构建
 
 ```bash
 # 在 ghostty 源码目录中构建并安装到独立目录
