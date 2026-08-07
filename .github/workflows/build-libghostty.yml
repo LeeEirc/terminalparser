@@ -3,8 +3,8 @@ name: Build libghostty-vt
 on:
   workflow_dispatch:
     inputs:
-      ghostty_tag:
-        description: 'Ghostty git tag to build'
+      ghostty_ref:
+        description: 'Ghostty tag, branch, or commit SHA'
         required: true
         default: 'v1.3.1'
       zig_version:
@@ -19,7 +19,7 @@ permissions:
   contents: write
 
 env:
-  GHOSTTY_TAG: ${{ inputs.ghostty_tag || 'v1.3.1' }}
+  GHOSTTY_REF: ${{ inputs.ghostty_ref || 'v1.3.1' }}
   ZIG_VERSION: ${{ inputs.zig_version || '0.14.1' }}
 
 jobs:
@@ -57,7 +57,19 @@ jobs:
           version: ${{ env.ZIG_VERSION }}
 
       - name: Clone Ghostty
-        run: git clone --depth 1 --branch "${GHOSTTY_TAG}" https://github.com/ghostty-org/ghostty.git
+        run: |
+          set -euo pipefail
+          REF="${GHOSTTY_REF}"
+          if git clone --depth 1 --branch "${REF}" https://github.com/ghostty-org/ghostty.git 2>/dev/null; then
+            cd ghostty
+            VERSION=$(git describe --tags --exact-match 2>/dev/null || echo "${REF}")
+          else
+            git clone https://github.com/ghostty-org/ghostty.git
+            cd ghostty
+            git checkout "${REF}"
+            VERSION=$(git describe --tags --exact-match 2>/dev/null || git rev-parse --short HEAD)
+          fi
+          echo "GHOSTTY_VERSION=${VERSION}" >> "$GITHUB_ENV"
 
       - name: Build libghostty-vt
         run: |
@@ -68,7 +80,7 @@ jobs:
 
       - name: Package
         run: |
-          ARCHIVE="libghostty-vt-${GHOSTTY_TAG}-${ARTIFACT_NAME}.tar.gz"
+          ARCHIVE="libghostty-vt-${GHOSTTY_VERSION}-${ARTIFACT_NAME}.tar.gz"
           tar -czf "${ARCHIVE}" -C "${INSTALL_PREFIX}" .
           echo "ARCHIVE=${ARCHIVE}" >> "$GITHUB_ENV"
 
@@ -104,7 +116,16 @@ jobs:
           version: ${{ env.ZIG_VERSION }}
 
       - name: Clone Ghostty
-        run: git clone --depth 1 --branch "${GHOSTTY_TAG}" https://github.com/ghostty-org/ghostty.git
+        run: |
+          set -euo pipefail
+          REF="${GHOSTTY_REF}"
+          if git clone --depth 1 --branch "${REF}" https://github.com/ghostty-org/ghostty.git 2>/dev/null; then
+            :
+          else
+            git clone https://github.com/ghostty-org/ghostty.git
+            cd ghostty
+            git checkout "${REF}"
+          fi
 
       - name: Build libghostty-vt (native)
         run: |
