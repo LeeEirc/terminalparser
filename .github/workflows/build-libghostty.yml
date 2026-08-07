@@ -46,9 +46,11 @@ jobs:
     env:
       ZIG_TARGET: ${{ matrix.target }}
       ARTIFACT_NAME: ${{ matrix.artifact }}
-      INSTALL_PREFIX: ${{ runner.temp }}/install
 
     steps:
+      - name: Set install prefix
+        run: echo "INSTALL_PREFIX=${RUNNER_TEMP}/install" >> "$GITHUB_ENV"
+
       - name: Install Zig
         uses: goto-bus-stop/setup-zig@v2
         with:
@@ -89,11 +91,12 @@ jobs:
     runs-on: ubuntu-latest
     name: Verify (linux-amd64)
     if: startsWith(github.ref, 'refs/tags/libghostty-vt/') || github.event_name == 'workflow_dispatch'
-    env:
-      GHOSTTY_PREFIX: ${{ runner.temp }}/libghostty-vt
 
     steps:
       - uses: actions/checkout@v4
+
+      - name: Set ghostty prefix
+        run: echo "GHOSTTY_PREFIX=${RUNNER_TEMP}/libghostty-vt" >> "$GITHUB_ENV"
 
       - name: Install Zig
         uses: goto-bus-stop/setup-zig@v2
